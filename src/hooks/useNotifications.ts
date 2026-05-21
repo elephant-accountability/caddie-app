@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { api } from '../api/client';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -46,8 +47,10 @@ export function useNotifications() {
     registerForPushNotifications()
       .then(token => {
         if (token) {
-          // TODO: POST token to /api/push-token when endpoint exists
-          console.log('Push token:', token);
+          // Register token with backend
+          api.registerPushToken(token).catch(err =>
+            console.warn('Failed to register push token:', err)
+          );
         }
       })
       .catch(err => console.warn('Push registration failed:', err));

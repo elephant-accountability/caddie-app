@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, RefreshControl, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { colors } from '../../src/theme/colors';
-import { useQueue } from '../../src/hooks/useQueue';
+import { useQueue } from '../../src/context/QueueContext';
 import { MorningBrief } from '../../src/components/MorningBrief';
 
 export default function BriefScreen() {

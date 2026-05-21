@@ -124,6 +124,14 @@ class CaddieAPI {
   async getDraft(actionId: string): Promise<DraftResponse> {
     return this.fetchWithTimeout<DraftResponse>('/api/actions/' + actionId + '/draft');
   }
+
+  // Register push notification token
+  async registerPushToken(token: string): Promise<{ status: string }> {
+    return this.fetchWithTimeout<{ status: string }>('/api/push-token', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  }
 }
 
 export const api = new CaddieAPI();
