@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -25,12 +24,19 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
   const totalRevMin = actions.reduce((s, a) => s + (a.revenue?.[0] || 0), 0);
   const totalRevMax = actions.reduce((s, a) => s + (a.revenue?.[1] || 0), 0);
 
-  // Detect trade show follow-ups
-  const tradeShow = actions.filter(a =>
-    (a.reason + ' ' + a.supporting).toLowerCase().match(
-      /ampp|geoweek|aga 2025|cga 2025|gsa |utility expo|trade show|booth/
-    )
-  );
+  // Detect trade show follow-ups — look for common trigger patterns
+  const tradeShow = actions.filter(a => {
+    const text = (a.reason + ' ' + a.supporting).toLowerCase();
+    return text.includes('trade show') || text.includes('booth') ||
+           text.includes('follow-up from') || text.includes('met at');
+  });
+
+  const ACTION_COLORS_MAP: Record<string, string> = {
+    call: colors.actionCall,
+    email: colors.actionEmail,
+    sms: colors.actionSms,
+    research: colors.actionResearch,
+  };
 
   return (
     <View style={styles.container}>
@@ -68,7 +74,7 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
         <View style={styles.revCard}>
           <Ionicons name="trending-up" size={18} color={colors.success} />
           <Text style={styles.revText}>
-            ${Math.round(totalRevMin).toLocaleString()}–${Math.round(totalRevMax).toLocaleString()} in pipeline across today's actions
+            ${Math.round(totalRevMin).toLocaleString()}\u2013${Math.round(totalRevMax).toLocaleString()} in pipeline across today's actions
           </Text>
         </View>
       )}
@@ -84,7 +90,7 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
             <View key={a.id} style={styles.briefItem}>
               <View style={[styles.dot, { backgroundColor: colors.actionEmail }]} />
               <Text style={styles.briefText} numberOfLines={2}>
-                {a.contact || a.account} — {a.reason.split('.')[0]}
+                {a.contact || a.account} \u2014 {a.reason.split('.')[0]}
               </Text>
             </View>
           ))}
@@ -109,14 +115,10 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
               </Text>
             </View>
             <View style={[styles.typePill, {
-              backgroundColor: (
-                a.type === 'call' ? colors.actionCall :
-                a.type === 'email' ? colors.actionEmail : colors.actionResearch
-              ) + '20'
+              backgroundColor: (ACTION_COLORS_MAP[a.type] || colors.actionResearch) + '20',
             }]}>
               <Text style={[styles.typeLabel, {
-                color: a.type === 'call' ? colors.actionCall :
-                a.type === 'email' ? colors.actionEmail : colors.actionResearch
+                color: ACTION_COLORS_MAP[a.type] || colors.actionResearch,
               }]}>{a.type}</Text>
             </View>
           </View>

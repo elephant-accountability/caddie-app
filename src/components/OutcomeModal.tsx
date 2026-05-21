@@ -13,27 +13,33 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../theme/colors';
 import { sizes } from '../theme/typography';
+import type { OutcomeType } from '../types/api';
 
-const OUTCOMES = [
+const OUTCOMES: ReadonlyArray<{
+  key: OutcomeType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}> = [
   { key: 'completed', label: 'Connected', icon: 'checkmark-circle', color: colors.success },
   { key: 'voicemail', label: 'Voicemail', icon: 'recording-outline', color: colors.actionEmail },
   { key: 'no_answer', label: 'No answer', icon: 'call-outline', color: colors.warning },
   { key: 'callback', label: 'Call back', icon: 'time-outline', color: colors.blueLight },
   { key: 'not_relevant', label: 'Not relevant', icon: 'close-circle-outline', color: colors.textMuted },
-] as const;
+];
 
 interface OutcomeModalProps {
   visible: boolean;
   contactName: string;
-  onSubmit: (outcome: string, note?: string) => void;
+  onSubmit: (outcome: OutcomeType, note?: string) => void;
   onClose: () => void;
 }
 
 export function OutcomeModal({ visible, contactName, onSubmit, onClose }: OutcomeModalProps) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<OutcomeType | null>(null);
   const [note, setNote] = useState('');
 
-  const handleSelect = (key: string) => {
+  const handleSelect = (key: OutcomeType) => {
     Haptics.selectionAsync();
     setSelected(key);
   };
@@ -63,7 +69,7 @@ export function OutcomeModal({ visible, contactName, onSubmit, onClose }: Outcom
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Pressable style={styles.backdrop} onPress={handleClose} />
+        <Pressable style={styles.backdrop} onPress={handleClose} accessibilityRole="button" accessibilityLabel="Close" />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>How'd it go with {contactName}?</Text>
@@ -77,9 +83,12 @@ export function OutcomeModal({ visible, contactName, onSubmit, onClose }: Outcom
                   selected === o.key && { backgroundColor: o.color + '20', borderColor: o.color },
                 ]}
                 onPress={() => handleSelect(o.key)}
+                accessibilityRole="button"
+                accessibilityLabel={o.label}
+                accessibilityState={{ selected: selected === o.key }}
               >
                 <Ionicons
-                  name={o.icon as any}
+                  name={o.icon}
                   size={22}
                   color={selected === o.key ? o.color : colors.textSecondary}
                 />
@@ -103,17 +112,21 @@ export function OutcomeModal({ visible, contactName, onSubmit, onClose }: Outcom
               multiline
               maxLength={300}
               autoFocus
+              accessibilityLabel="Add a note about this interaction"
             />
           )}
 
           <View style={styles.actions}>
-            <Pressable style={styles.cancelBtn} onPress={handleClose}>
+            <Pressable style={styles.cancelBtn} onPress={handleClose} accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
             <Pressable
               style={[styles.submitBtn, !selected && styles.submitDisabled]}
               onPress={handleSubmit}
               disabled={!selected}
+              accessibilityRole="button"
+              accessibilityLabel="Log outcome"
+              accessibilityState={{ disabled: !selected }}
             >
               <Text style={styles.submitText}>Log it</Text>
             </Pressable>

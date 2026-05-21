@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,18 +15,14 @@ import { colors } from '../theme/colors';
 import { sizes } from '../theme/typography';
 import type { Action } from '../types/api';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
-const SWIPE_UP_THRESHOLD = 120;
-
-const ACTION_ICONS: Record<string, string> = {
+const ACTION_ICONS: Record<Action['type'], keyof typeof Ionicons.glyphMap> = {
   call: 'call-outline',
   email: 'mail-outline',
   sms: 'chatbubble-outline',
   research: 'search-outline',
 };
 
-const ACTION_COLORS: Record<string, string> = {
+const ACTION_COLORS: Record<Action['type'], string> = {
   call: colors.actionCall,
   email: colors.actionEmail,
   sms: colors.actionSms,
@@ -35,7 +31,7 @@ const ACTION_COLORS: Record<string, string> = {
 
 interface Props {
   action: Action;
-  onSwipeRight: () => void;  // complete
+  onSwipeRight: () => void;  // opens outcome picker
   onSwipeLeft: () => void;   // skip
   onSwipeUp: () => void;     // snooze
   onTapContact: () => void;
@@ -47,11 +43,24 @@ export function SwipeableActionCard({
 }: Props) {
   const pan = useRef(new Animated.ValueXY()).current;
   const opacity = useRef(new Animated.Value(1)).current;
-  const accentColor = ACTION_COLORS[action.type] || colors.blue;
-  const iconName = ACTION_ICONS[action.type] || 'ellipse-outline';
+  const screenWidth = useRef(Dimensions.get('window').width).current;
+  const swipeThreshold = screenWidth * 0.3;
+  const swipeUpThreshold = 120;
 
-  const panResponder = useRef(
-    PanResponder.create({
+  // Reset animated values when the action changes (new card appears)
+  useEffect(() => {
+    pan.setValue({ x: 0, y: 0 });
+    opacity.setValue(1);
+  }, [action.id, pan, opacity]);
+
+  // Store callbacks in refs to avoid stale closures in PanResponder
+  const callbacksRef = useRef({ onSwipeRight, onSwipeLeft, onSwipeUp });
+  useEffect(() => {
+    callbacksRef.current = { onSwipeRight, onSwipeLeft, onSwipeUp };
+  }, [onSwipeRight, onSwipeLeft, onSwipeUp]);
+
+  const panResponder = useMemo(
+    () => PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) =>
         Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10,
       onPanResponderMove: Animated.event(
@@ -59,29 +68,25 @@ export function SwipeableActionCard({
         { useNativeDriver: false }
       ),
       onPanResponderRelease: (_, g) => {
-        if (g.dx > SWIPE_THRESHOLD) {
-          // Swipe right → complete
+        if (g.dx > swipeThreshold) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           Animated.parallel([
-            Animated.timing(pan.x, { toValue: SCREEN_WIDTH, duration: 200, useNativeDriver: false }),
+            Animated.timing(pan.x, { toValue: screenWidth, duration: 200, useNativeDriver: false }),
             Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: false }),
-          ]).start(onSwipeRight);
-        } else if (g.dx < -SWIPE_THRESHOLD) {
-          // Swipe left → skip
+          ]).start(() => callbacksRef.current.onSwipeRight());
+        } else if (g.dx < -swipeThreshold) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           Animated.parallel([
-            Animated.timing(pan.x, { toValue: -SCREEN_WIDTH, duration: 200, useNativeDriver: false }),
+            Animated.timing(pan.x, { toValue: -screenWidth, duration: 200, useNativeDriver: false }),
             Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: false }),
-          ]).start(onSwipeLeft);
-        } else if (g.dy < -SWIPE_UP_THRESHOLD) {
-          // Swipe up → snooze
+          ]).start(() => callbacksRef.current.onSwipeLeft());
+        } else if (g.dy < -swipeUpThreshold) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           Animated.parallel([
             Animated.timing(pan.y, { toValue: -600, duration: 250, useNativeDriver: false }),
             Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: false }),
-          ]).start(onSwipeUp);
+          ]).start(() => callbacksRef.current.onSwipeUp());
         } else {
-          // Snap back
           Animated.spring(pan, {
             toValue: { x: 0, y: 0 },
             useNativeDriver: false,
@@ -89,41 +94,44 @@ export function SwipeableActionCard({
           }).start();
         }
       },
-    })
-  ).current;
+    }),
+    [pan, opacity, screenWidth, swipeThreshold, swipeUpThreshold]
+  );
+
+  const accentColor = ACTION_COLORS[action.type] || colors.blue;
+  const iconName = ACTION_ICONS[action.type] || 'ellipse-outline';
 
   // Swipe indicators
   const rightOpacity = pan.x.interpolate({
-    inputRange: [0, SWIPE_THRESHOLD],
+    inputRange: [0, swipeThreshold],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   const leftOpacity = pan.x.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, 0],
+    inputRange: [-swipeThreshold, 0],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
   const upOpacity = pan.y.interpolate({
-    inputRange: [-SWIPE_UP_THRESHOLD, 0],
+    inputRange: [-swipeUpThreshold, 0],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
-
   const cardRotation = pan.x.interpolate({
-    inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+    inputRange: [-screenWidth, 0, screenWidth],
     outputRange: ['-8deg', '0deg', '8deg'],
   });
 
-  const supportLines = (action.supporting || '').split('\n').filter(l => l.trim());
-  const timingLine = supportLines.find(l => l.includes('⏰'));
-  const mainSupport = supportLines.filter(l => !l.includes('⏰')).join(' ');
+  const supportLines = (action.supporting || '').split('\n').filter((l: string) => l.trim());
+  const timingLine = supportLines.find((l: string) => l.includes('\u23f0'));
+  const mainSupport = supportLines.filter((l: string) => !l.includes('\u23f0')).join(' ');
 
-  const handleCall = () => {
+  const handleCall = useCallback(() => {
     if (action.phone) {
       const cleaned = action.phone.replace(/[^0-9+]/g, '');
-      Linking.openURL(`tel:${cleaned}`);
+      Linking.openURL('tel:' + cleaned);
     }
-  };
+  }, [action.phone]);
 
   return (
     <View style={styles.wrapper}>
@@ -160,7 +168,7 @@ export function SwipeableActionCard({
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.typeBadge, { backgroundColor: accentColor + '20' }]}>
-            <Ionicons name={iconName as any} size={16} color={accentColor} />
+            <Ionicons name={iconName} size={16} color={accentColor} />
             <Text style={[styles.typeText, { color: accentColor }]}>
               {action.type.toUpperCase()}
             </Text>
@@ -170,8 +178,8 @@ export function SwipeableActionCard({
           ) : null}
         </View>
 
-        {/* Contact — tappable */}
-        <Pressable onPress={onTapContact}>
+        {/* Contact */}
+        <Pressable onPress={onTapContact} accessibilityRole="button" accessibilityLabel={'View ' + (action.contact || action.account)}>
           <Text style={styles.contactName}>
             {action.contact || action.account}
           </Text>
@@ -191,31 +199,41 @@ export function SwipeableActionCard({
         {action.revenue && action.revenue[1] > 0 && (
           <View style={styles.revBadge}>
             <Text style={styles.revText}>
-              ${Math.round(action.revenue[0]).toLocaleString()}–${Math.round(action.revenue[1]).toLocaleString()}
+              ${Math.round(action.revenue[0]).toLocaleString()}\u2013${Math.round(action.revenue[1]).toLocaleString()}
             </Text>
           </View>
         )}
 
         {timingLine && (
-          <Text style={styles.timing}>{timingLine.replace('⏰ ', '')}</Text>
+          <Text style={styles.timing}>{timingLine.replace('\u23f0 ', '')}</Text>
         )}
 
         {/* Bottom action buttons — tap alternatives to swipe */}
         <View style={styles.btnRow}>
           {action.type === 'call' && action.phone && (
-            <Pressable style={[styles.btn, { backgroundColor: accentColor }]} onPress={handleCall}>
+            <Pressable
+              style={[styles.btn, { backgroundColor: accentColor }]}
+              onPress={handleCall}
+              accessibilityRole="button"
+              accessibilityLabel={'Call ' + (action.contact || action.account)}
+            >
               <Ionicons name="call" size={18} color="#fff" />
               <Text style={styles.btnTextLight}>Call now</Text>
             </Pressable>
           )}
-          <Pressable style={[styles.btn, styles.btnOutline]} onPress={onTapAction}>
+          <Pressable
+            style={[styles.btn, styles.btnOutline]}
+            onPress={onTapAction}
+            accessibilityRole="button"
+            accessibilityLabel="More options"
+          >
             <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
             <Text style={styles.btnTextMuted}>More</Text>
           </Pressable>
         </View>
 
         {/* Swipe hint */}
-        <Text style={styles.swipeHint}>swipe → done · ← skip · ↑ later</Text>
+        <Text style={styles.swipeHint}>swipe \u2192 done \u00b7 \u2190 skip \u00b7 \u2191 later</Text>
       </Animated.View>
     </View>
   );
@@ -233,9 +251,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  rightIndicator: { right: 30, top: '40%' },
-  leftIndicator: { left: 30, top: '40%' },
-  upIndicator: { alignSelf: 'center', top: 20, left: '42%' },
+  rightIndicator: { right: 30, top: 120 },
+  leftIndicator: { left: 30, top: 120 },
+  upIndicator: { alignSelf: 'center', top: 20, width: '100%', alignItems: 'center' },
   indicatorText: { fontSize: sizes.sm, fontWeight: '700' },
   card: {
     backgroundColor: colors.bgCard,

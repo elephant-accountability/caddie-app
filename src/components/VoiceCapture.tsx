@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   Pressable,
-  TextInput,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,29 +14,31 @@ import { sizes } from '../theme/typography';
 import { api } from '../api/client';
 
 interface VoiceCaptureProps {
-  onComplete?: () => void;
   placeholder?: string;
 }
 
-export function VoiceCapture({ onComplete, placeholder }: VoiceCaptureProps) {
+export function VoiceCapture({ placeholder }: VoiceCaptureProps) {
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   const handleSubmit = async () => {
-    if (!text.trim()) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!text.trim() || submitting) return;
     setSubmitting(true);
+    setFeedback(null);
     try {
       await api.ingestConversation(text.trim());
-      setSubmitted(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFeedback({ type: 'success', msg: 'Logged' });
       setText('');
-      setTimeout(() => {
-        setSubmitted(false);
-        onComplete?.();
-      }, 1500);
-    } catch (e) {
-      // TODO: show error
+      // Clear success message after 3s
+      setTimeout(() => setFeedback(null), 3000);
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setFeedback({
+        type: 'error',
+        msg: err instanceof Error ? err.message : 'Failed to log',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -48,82 +50,77 @@ export function VoiceCapture({ onComplete, placeholder }: VoiceCaptureProps) {
         style={styles.input}
         value={text}
         onChangeText={setText}
-        placeholder={placeholder || "Just called Jesse, he wants the LPM demo Tuesday..."}
+        placeholder={placeholder || 'What happened?'}
         placeholderTextColor={colors.textMuted}
         multiline
-        maxLength={500}
-        editable={!submitting}
+        maxLength={1000}
+        accessibilityLabel="Touch note"
+        accessibilityHint="Describe the interaction you just had"
       />
-      <View style={styles.footer}>
-        <Text style={styles.charCount}>{text.length}/500</Text>
-        <Pressable
-          style={[
-            styles.submitBtn,
-            (!text.trim() || submitting) && styles.submitBtnDisabled,
-            submitted && styles.submitBtnSuccess,
-          ]}
-          onPress={handleSubmit}
-          disabled={!text.trim() || submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : submitted ? (
-            <Ionicons name="checkmark" size={20} color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="send" size={16} color="#fff" />
-              <Text style={styles.submitText}>Log</Text>
-            </>
-          )}
-        </Pressable>
-      </View>
+      {feedback && (
+        <Text style={[
+          styles.feedback,
+          { color: feedback.type === 'success' ? colors.success : colors.danger },
+        ]}>
+          {feedback.msg}
+        </Text>
+      )}
+      <Pressable
+        style={[styles.btn, (!text.trim() || submitting) && styles.btnDisabled]}
+        onPress={handleSubmit}
+        disabled={!text.trim() || submitting}
+        accessibilityRole="button"
+        accessibilityLabel="Submit touch note"
+        accessibilityState={{ disabled: !text.trim() || submitting }}
+      >
+        {submitting ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <Ionicons name="send" size={16} color="#fff" />
+            <Text style={styles.btnText}>Log it</Text>
+          </>
+        )}
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.bgCard,
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    paddingHorizontal: 20,
   },
   input: {
+    backgroundColor: colors.bgInput,
+    borderRadius: 12,
+    padding: 14,
     color: colors.textPrimary,
     fontSize: sizes.base,
-    lineHeight: 22,
     minHeight: 80,
     textAlignVertical: 'top',
+    marginBottom: 12,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
+  feedback: {
+    fontSize: sizes.sm,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  charCount: {
-    fontSize: sizes.xs,
-    color: colors.textMuted,
-  },
-  submitBtn: {
+  btn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: colors.blue,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
   },
-  submitBtnDisabled: {
+  btnDisabled: {
     opacity: 0.4,
   },
-  submitBtnSuccess: {
-    backgroundColor: colors.success,
-  },
-  submitText: {
+  btnText: {
     color: '#fff',
-    fontSize: sizes.sm,
+    fontSize: sizes.base,
     fontWeight: '700',
   },
 });

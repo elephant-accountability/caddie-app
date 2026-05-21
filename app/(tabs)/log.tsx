@@ -14,15 +14,14 @@ import { Audio } from 'expo-av';
 import { colors } from '../../src/theme/colors';
 import { sizes } from '../../src/theme/typography';
 import { VoiceCapture } from '../../src/components/VoiceCapture';
-import { api } from '../../src/api/client';
 
 export default function LogScreen() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [showText, setShowText] = useState(false);
+  const [isStarting, setIsStarting] = useState(false); // double-tap guard
   const pulse = useRef(new Animated.Value(1)).current;
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (isRecording) {
@@ -44,9 +43,11 @@ export default function LogScreen() {
       pulse.setValue(1);
       if (timerRef.current) clearInterval(timerRef.current);
     }
-  }, [isRecording]);
+  }, [isRecording, pulse]);
 
   const startRecording = async () => {
+    if (isStarting || isRecording) return; // double-tap guard
+    setIsStarting(true);
     try {
       const perm = await Audio.requestPermissionsAsync();
       if (!perm.granted) {
@@ -66,6 +67,8 @@ export default function LogScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch (err) {
       Alert.alert('Recording failed', 'Could not start recording.');
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -79,10 +82,9 @@ export default function LogScreen() {
       setRecording(null);
       if (uri) {
         // TODO: send to transcription endpoint, then ingest
-        // For now, log that we captured audio
         Alert.alert(
           'Voice captured',
-          `${recordingDuration}s recorded. Transcription coming in v1.1 — use text input for now.`,
+          recordingDuration + 's recorded. Transcription coming in v1.1 — use text input for now.',
         );
       }
     } catch (err) {
@@ -93,7 +95,7 @@ export default function LogScreen() {
   const formatDuration = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+    return m + ':' + sec.toString().padStart(2, '0');
   };
 
   return (
@@ -113,6 +115,9 @@ export default function LogScreen() {
             <Pressable
               style={[styles.micBtn, isRecording && styles.micBtnActive]}
               onPress={isRecording ? stopRecording : startRecording}
+              accessibilityRole="button"
+              accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
+              accessibilityState={{ busy: isRecording }}
             >
               <Ionicons
                 name={isRecording ? 'stop' : 'mic'}

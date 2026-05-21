@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { api } from '../api/client';
-import type { Action, QueueResponse } from '../types/api';
+import type { Action, QueueResponse, OutcomeType } from '../types/api';
 
 export function useQueue() {
   const [actions, setActions] = useState<Action[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -27,27 +28,55 @@ export function useQueue() {
   }, [refresh]);
 
   const currentAction = actions[currentIndex] ?? null;
-  const remaining = actions.length - currentIndex;
+  const remaining = Math.max(0, actions.length - currentIndex);
 
-  const complete = useCallback(async (outcome: string, note?: string) => {
-    if (!currentAction) return;
-    await api.submitOutcome({
-      action_id: currentAction.id,
-      outcome: outcome as any,
-      note,
-    });
-    setCurrentIndex(i => i + 1);
-  }, [currentAction]);
+  const complete = useCallback(async (outcome: OutcomeType, note?: string) => {
+    if (!currentAction || mutating) return;
+    setMutating(true);
+    setError(null);
+    try {
+      const result = await api.submitOutcome({
+        action_id: currentAction.id,
+        outcome,
+        note,
+      });
+      // Use server's index if available, otherwise increment locally
+      setCurrentIndex(result.current_index ?? ((i: number) => i + 1));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to log outcome');
+      // Do NOT advance — card stays so user can retry
+    } finally {
+      setMutating(false);
+    }
+  }, [currentAction, mutating]);
 
   const skip = useCallback(async () => {
-    await api.skip();
-    setCurrentIndex(i => i + 1);
-  }, []);
+    if (mutating) return;
+    setMutating(true);
+    setError(null);
+    try {
+      const result = await api.skip();
+      setCurrentIndex(i => i + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to skip');
+    } finally {
+      setMutating(false);
+    }
+  }, [mutating]);
 
   const snooze = useCallback(async (hours: number = 4) => {
-    await api.snooze(hours);
-    setCurrentIndex(i => i + 1);
-  }, []);
+    if (mutating) return;
+    setMutating(true);
+    setError(null);
+    try {
+      await api.snooze(hours);
+      setCurrentIndex(i => i + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to snooze');
+    } finally {
+      setMutating(false);
+    }
+  }, [mutating]);
 
   return {
     actions,
@@ -56,6 +85,7 @@ export function useQueue() {
     remaining,
     loading,
     error,
+    mutating,
     refresh,
     complete,
     skip,

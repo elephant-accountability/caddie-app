@@ -1,69 +1,78 @@
-import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
+    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
-export function useNotifications() {
-  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-  const notificationListener = useRef<Notifications.EventSubscription>(undefined);
-  const responseListener = useRef<Notifications.EventSubscription>(undefined);
-
-  useEffect(() => {
-    registerForPushNotifications().then(token => {
-      if (token) {
-        setExpoPushToken(token);
-        SecureStore.setItemAsync('push_token', token);
-      }
-    });
-
-    notificationListener.current = Notifications.addNotificationReceivedListener(n => {
-      setNotification(n);
-    });
-
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(_response => {
-      // TODO: use router to navigate based on response data
-    });
-
-    return () => {
-      notificationListener.current?.remove();
-      responseListener.current?.remove();
-    };
-  }, []);
-
-  return { expoPushToken, notification };
-}
-
 async function registerForPushNotifications(): Promise<string | null> {
-  if (Platform.OS === 'web') return null;
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  let finalStatus = existing;
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
+  if (existing !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
 
   if (finalStatus !== 'granted') return null;
 
-  try {
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId || undefined,
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Caddie',
+      importance: Notifications.AndroidImportance.HIGH,
     });
-    return token.data;
-  } catch {
-    return null;
   }
+
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+  const token = await Notifications.getExpoPushTokenAsync(
+    projectId ? { projectId } : undefined
+  );
+  return token.data;
+}
+
+export function useNotifications() {
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+
+  useEffect(() => {
+    registerForPushNotifications()
+      .then(token => {
+        if (token) {
+          // TODO: POST token to /api/push-token when endpoint exists
+          console.log('Push token:', token);
+        }
+      })
+      .catch(err => console.warn('Push registration failed:', err));
+
+    notificationListener.current = Notifications.addNotificationReceivedListener(
+      notification => {
+        console.log('Notification received:', notification.request.content.title);
+      }
+    );
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      response => {
+        const data = response.notification.request.content.data;
+        // TODO: navigate to relevant screen based on data
+        console.log('Notification tapped:', data);
+      }
+    );
+
+    return () => {
+      if (notificationListener.current) {
+        notificationListener.current.remove();
+      }
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
+    };
+  }, []);
 }

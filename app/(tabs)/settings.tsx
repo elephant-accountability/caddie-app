@@ -9,15 +9,16 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../src/theme/colors';
 import { sizes } from '../../src/theme/typography';
 import { api } from '../../src/api/client';
 
+const APP_VERSION = Constants.expoConfig?.version || '0.1.0';
+
 export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [morningBriefTime, setMorningBriefTime] = useState('7:00 AM');
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
   useEffect(() => {
@@ -36,23 +37,19 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Connection</Text>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>Server</Text>
-            <View style={styles.statusBadge}>
+            <View style={styles.statusBadge} accessibilityLabel={'Server ' + (serverStatus === 'online' ? 'connected' : serverStatus === 'checking' ? 'checking' : 'offline')}>
               <View style={[
                 styles.statusDot,
-                { backgroundColor: serverStatus === 'online' ? colors.success : colors.danger },
+                { backgroundColor: serverStatus === 'online' ? colors.success : serverStatus === 'checking' ? colors.warning : colors.danger },
               ]} />
               <Text style={[
                 styles.statusText,
-                { color: serverStatus === 'online' ? colors.success : colors.danger },
+                { color: serverStatus === 'online' ? colors.success : serverStatus === 'checking' ? colors.warning : colors.danger },
               ]}>
                 {serverStatus === 'checking' ? 'Checking...' :
                  serverStatus === 'online' ? 'Connected' : 'Offline'}
               </Text>
             </View>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Endpoint</Text>
-            <Text style={styles.rowValue}>caddie-core.fly.dev</Text>
           </View>
         </View>
 
@@ -66,31 +63,29 @@ export default function SettingsScreen() {
               onValueChange={setPushEnabled}
               trackColor={{ false: colors.border, true: colors.blue + '60' }}
               thumbColor={pushEnabled ? colors.blue : colors.textMuted}
+              accessibilityLabel="Toggle push notifications"
             />
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Morning brief</Text>
-            <Text style={styles.rowValue}>{morningBriefTime}</Text>
           </View>
         </View>
 
         {/* Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Rep</Text>
-            <Text style={styles.rowValue}>chris-kenney</Text>
-          </View>
-          <Pressable style={styles.row} onPress={() => {
-            Alert.alert(
-              'Export data',
-              'Your Career OS is portable. Export all contacts, touches, and deal history as JSON.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Export', onPress: () => Alert.alert('Coming soon', 'Data export in v1.1') },
-              ]
-            );
-          }}>
+          <Pressable
+            style={styles.row}
+            onPress={() => {
+              Alert.alert(
+                'Export data',
+                'Your Career OS is portable. Export all contacts, touches, and deal history as JSON.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Export', onPress: () => Alert.alert('Coming soon', 'Data export in v1.1') },
+                ]
+              );
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Export your data"
+          >
             <Text style={styles.rowLabel}>Export your data</Text>
             <Ionicons name="download-outline" size={20} color={colors.textSecondary} />
           </Pressable>
@@ -101,7 +96,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>About</Text>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>Version</Text>
-            <Text style={styles.rowValue}>0.1.0 (TestFlight)</Text>
+            <Text style={styles.rowValue}>{APP_VERSION}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>Build</Text>
