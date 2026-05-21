@@ -13,7 +13,9 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.bg },
           animation: 'fade',
         }}
-      />
+      >
+        <Stack.Screen name="(tabs)" />
+      </Stack>
     </GestureHandlerRootView>
   );
 }
