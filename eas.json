@@ -24,9 +24,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "APPLE_ID_HERE",
+        "appleId": "cpkenney06@yahoo.com",
         "ascAppId": "ASC_APP_ID_HERE",
-        "appleTeamId": "TEAM_ID_HERE"
+        "appleTeamId": "APPLE_TEAM_ID_HERE"
       }
     }
   }

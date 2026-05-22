@@ -27,7 +27,7 @@ async function registerForPushNotifications(): Promise<string | null> {
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'Caddie',
+      name: 'Caddie EDC',
       importance: Notifications.AndroidImportance.HIGH,
     });
   }
