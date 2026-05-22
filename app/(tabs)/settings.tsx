@@ -100,7 +100,7 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>Build</Text>
-            <Text style={styles.rowValue}>Caddie by EA LLC</Text>
+            <Text style={styles.rowValue}>Caddie EDC by EA LLC</Text>
           </View>
         </View>
 

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Caddie",
-    "slug": "caddie",
+    "name": "Caddie EDC",
+    "slug": "caddie-edc",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "caddie",
+    "scheme": "caddie-edc",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,9 +15,9 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ealegalllc.caddie",
+      "bundleIdentifier": "com.elephantaccountability.caddie",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Caddie uses the microphone to record voice notes about customer interactions."
+        "NSMicrophoneUsageDescription": "Caddie EDC uses the microphone to record voice notes about customer interactions."
       }
     },
     "android": {
@@ -25,8 +25,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#121216"
       },
-      "package": "com.ealegalllc.caddie",
-      "permissions": ["RECORD_AUDIO"]
+      "package": "com.elephantaccountability.caddie",
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -38,7 +40,7 @@
       [
         "expo-av",
         {
-          "microphonePermission": "Caddie uses the microphone to record voice notes about customer interactions."
+          "microphonePermission": "Caddie EDC uses the microphone to record voice notes about customer interactions."
         }
       ],
       [
