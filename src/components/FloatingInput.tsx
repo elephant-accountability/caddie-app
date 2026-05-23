@@ -41,12 +41,14 @@ export function FloatingInput() {
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: expanded ? 1 : 0,
-      duration: 200,
+      duration: 150,
       useNativeDriver: false,
-    }).start();
-    if (expanded && !recording) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    }).start(() => {
+      // Focus after animation completes — ensures keyboard opens
+      if (expanded && !recording) {
+        inputRef.current?.focus();
+      }
+    });
   }, [expanded, fadeAnim, recording]);
 
   // Auto-dismiss reply after 8 seconds
@@ -291,6 +293,7 @@ export function FloatingInput() {
               maxLength={2000}
               blurOnSubmit={false}
               onSubmitEditing={handleSubmit}
+              autoFocus
             />
           )}
           {recording && (
