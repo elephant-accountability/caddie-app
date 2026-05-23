@@ -14,7 +14,7 @@ import { sizes } from '../../src/theme/typography';
 import { api } from '../../src/api/client';
 import type { ConversationIngestResponse } from '../../src/types/api';
 
-export function LogScreen() {
+export default function LogScreen() {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [entities, setEntities] = useState<any[]>([]);

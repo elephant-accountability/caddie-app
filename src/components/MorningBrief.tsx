@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -12,9 +13,10 @@ import type { Action } from '../types/api';
 interface MorningBriefProps {
   actions: Action[];
   date: Date;
+  onPressAction?: (action: Action) => void;
 }
 
-export function MorningBrief({ actions, date }: MorningBriefProps) {
+export function MorningBrief({ actions, date, onPressAction }: MorningBriefProps) {
   const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
   const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
@@ -87,12 +89,13 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
             <Text style={styles.sectionTitle}>Trade show follow-ups</Text>
           </View>
           {tradeShow.map(a => (
-            <View key={a.id} style={styles.briefItem}>
+            <Pressable key={a.id} style={styles.briefItem} onPress={() => onPressAction?.(a)} accessibilityRole="button">
               <View style={[styles.dot, { backgroundColor: colors.actionEmail }]} />
               <Text style={styles.briefText} numberOfLines={2}>
-                {a.contact || a.account} \u2014 {a.reason.split('.')[0]}
+                {a.contact || a.account} — {a.reason.split('.')[0]}
               </Text>
-            </View>
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+            </Pressable>
           ))}
         </View>
       )}
@@ -104,7 +107,7 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
           <Text style={styles.sectionTitle}>Priority actions</Text>
         </View>
         {actions.slice(0, 5).map((a, i) => (
-          <View key={a.id} style={styles.briefItem}>
+          <Pressable key={a.id} style={styles.briefItem} onPress={() => onPressAction?.(a)} accessibilityRole="button">
             <Text style={styles.briefIndex}>{i + 1}</Text>
             <View style={styles.briefContent}>
               <Text style={styles.briefName}>
@@ -121,7 +124,7 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
                 color: ACTION_COLORS_MAP[a.type] || colors.actionResearch,
               }]}>{a.type}</Text>
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
     </View>

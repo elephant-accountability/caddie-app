@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../src/theme/colors';
 import { sizes } from '../../src/theme/typography';
 import { useQueue } from '../../src/context/QueueContext';
-import { ActionCard } from '../../src/components/ActionCard';
+import { SwipeableActionCard } from '../../src/components/SwipeableActionCard';
 import { OutcomeModal } from '../../src/components/OutcomeModal';
 import { ContactSheet } from '../../src/components/ContactSheet';
 import { AskInput } from '../../src/components/AskInput';
@@ -77,12 +77,13 @@ export default function QueueScreen() {
             <ActivityIndicator size="large" color={colors.white} />
           </View>
         ) : currentAction ? (
-          <ActionCard
+          <SwipeableActionCard
             action={currentAction}
-            onDone={() => setShowOutcome(true)}
-            onSkip={handleSkip}
-            onSnooze={handleSnooze}
+            onSwipeRight={() => setShowOutcome(true)}
+            onSwipeLeft={handleSkip}
+            onSwipeUp={handleSnooze}
             onTapContact={handleTapContact}
+            onTapAction={() => setShowOutcome(true)}
           />
         ) : (
           <View style={styles.empty}>

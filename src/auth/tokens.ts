@@ -25,8 +25,8 @@ export async function getTokenExpiry(): Promise<number | null> {
 export async function isTokenValid(): Promise<boolean> {
   const expiry = await getTokenExpiry();
   if (!expiry) return false;
-  // Consider token expired if less than 1 hour remains
-  return expiry > Date.now() + 60 * 60 * 1000;
+  // Consider token expired if less than 5 minutes remain
+  return expiry > Date.now() + 5 * 60 * 1000;
 }
 
 export async function clearTokens(): Promise<void> {
@@ -40,8 +40,8 @@ export async function refreshIfNeeded(
   const expiry = await getTokenExpiry();
   if (!expiry) return null;
 
-  // Refresh if less than 1 hour remains
-  if (expiry - Date.now() < 60 * 60 * 1000) {
+  // Refresh if less than 10 minutes remain
+  if (expiry - Date.now() < 10 * 60 * 1000) {
     try {
       const tokens = await refreshFn();
       await storeTokens(tokens);

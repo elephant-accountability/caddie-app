@@ -55,7 +55,7 @@ export default function BriefScreen() {
             <ActivityIndicator size="large" color={colors.white} />
           </View>
         ) : (
-          <MorningBrief actions={actions} date={new Date()} />
+          <MorningBrief actions={actions} date={new Date()} onPressAction={() => router.push('/queue' as any)} />
         )}
       </ScrollView>
     </SafeAreaView>
