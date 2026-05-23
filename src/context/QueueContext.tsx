@@ -69,38 +69,35 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     if (!currentAction || mutating) return;
     setMutating(true);
     setError(null);
+    // Advance immediately — optimistic update
+    setCurrentIndex(i => i + 1);
     try {
-      // Write to offline outbox first
       await enqueueOutcome(currentAction.id, outcome, note);
-      // Then try to sync immediately
-      const result = await api.submitOutcome({
+      api.submitOutcome({
         action_id: currentAction.id,
         outcome,
         note,
-      });
-      setCurrentIndex(result.current_index ?? currentIndex + 1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to log outcome (saved for sync)');
-      // Still advance index locally — outbox will retry
-      setCurrentIndex(i => i + 1);
+      }).catch(() => {}); // fire-and-forget, outbox retries
+    } catch {
+      // Already advanced
     } finally {
       setMutating(false);
     }
-  }, [currentAction, mutating, currentIndex]);
+  }, [currentAction, mutating]);
 
   const skip = useCallback(async () => {
     if (mutating) return;
     setMutating(true);
     setError(null);
+    // Advance immediately — optimistic update
+    setCurrentIndex(i => i + 1);
     try {
       if (currentAction) {
         await enqueueSkip(currentAction.id);
       }
-      await api.skip(currentAction?.id);
-      setCurrentIndex(i => i + 1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to skip (saved for sync)');
-      setCurrentIndex(i => i + 1);
+      api.skip(currentAction?.id).catch(() => {}); // fire-and-forget
+    } catch {
+      // Already advanced — outbox will retry
     } finally {
       setMutating(false);
     }
@@ -110,15 +107,15 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     if (mutating) return;
     setMutating(true);
     setError(null);
+    // Advance immediately — optimistic update
+    setCurrentIndex(i => i + 1);
     try {
       if (currentAction) {
         await enqueueSnooze(currentAction.id, hours);
       }
-      await api.snooze(currentAction?.id, hours);
-      setCurrentIndex(i => i + 1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to snooze (saved for sync)');
-      setCurrentIndex(i => i + 1);
+      api.snooze(currentAction?.id, hours).catch(() => {}); // fire-and-forget
+    } catch {
+      // Already advanced — outbox will retry
     } finally {
       setMutating(false);
     }
