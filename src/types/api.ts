@@ -62,7 +62,9 @@ export interface AuthIssueRequest {
 
 export interface AuthIssueResponse {
   token: string;
-  expires_at: number;
+  rep_id: string;
+  tenant_id: string;
+  expires_in: number; // seconds until expiry
 }
 
 export interface ContextResponse {

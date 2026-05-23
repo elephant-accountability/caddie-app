@@ -34,9 +34,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (repId: string, signupSecret: string) => {
     const response = await api.issueToken({ rep_id: repId, signup_secret: signupSecret });
+    // Server returns expires_in (seconds); convert to epoch ms for storage
     const tokens: AuthTokens = {
       token: response.token,
-      expiresAt: response.expires_at,
+      expiresAt: Date.now() + (response.expires_in * 1000),
     };
     await storeTokens(tokens);
     setIsAuthenticated(true);

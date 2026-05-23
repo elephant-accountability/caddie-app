@@ -70,7 +70,8 @@ class CaddieAPI {
         await new Promise(r => setTimeout(r, 1000 * (retries + 1)));
         return this.fetchWithTimeout<T>(path, options, retries + 1);
       }
-      if (err instanceof DOMException && err.name === 'AbortError') {
+      // AbortError from timeout — DOMException doesn't exist in React Native
+      if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError') {
         throw new Error('Request timed out');
       }
       throw err;
