@@ -54,7 +54,7 @@ export default function VaultScreen() {
         }
       >
         <View style={styles.header}>
-          <Ionicons name="archivebox-outline" size={32} color={colors.white} />
+          <Ionicons name="archive-outline" size={32} color={colors.white} />
           <Text style={styles.title}>Vault</Text>
           <Text style={styles.subtitle}>
             {count > 0 ? `${count} documents uploaded` : 'No documents yet'}

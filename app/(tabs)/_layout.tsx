@@ -55,7 +55,7 @@ export default function TabLayout() {
         options={{
           title: 'Vault',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="archivebox-outline" size={size} color={color} />
+            <Ionicons name="archive-outline" size={size} color={color} />
           ),
         }}
       />

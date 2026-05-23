@@ -27,7 +27,9 @@ export function VoiceCapture({ placeholder }: VoiceCaptureProps) {
     setSubmitting(true);
     setFeedback(null);
     try {
-      await api.ingestConversation(text.trim());
+      const fd = new FormData();
+      fd.append('text', text.trim());
+      await api.ingestConversation(fd);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setFeedback({ type: 'success', msg: 'Logged' });
       setText('');

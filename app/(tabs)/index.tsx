@@ -42,7 +42,7 @@ export default function BriefScreen() {
         <View style={styles.linksRow}>
           <Pressable
             style={styles.linkBtn}
-            onPress={() => router.push('/history')}
+            onPress={() => router.push('/queue' as any)}
             accessibilityRole="button"
           >
             <Ionicons name="time-outline" size={18} color={colors.white} />

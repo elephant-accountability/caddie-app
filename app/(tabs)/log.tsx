@@ -9,10 +9,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors } from '../theme/colors';
-import { sizes } from '../theme/typography';
-import { api } from '../api/client';
-import type { ConversationIngestResponse } from '../types/api';
+import { colors } from '../../src/theme/colors';
+import { sizes } from '../../src/theme/typography';
+import { api } from '../../src/api/client';
+import type { ConversationIngestResponse } from '../../src/types/api';
 
 export function LogScreen() {
   const [recording, setRecording] = useState(false);

@@ -98,7 +98,7 @@ export function SwipeableActionCard({
     [pan, opacity, screenWidth, swipeThreshold, swipeUpThreshold]
   );
 
-  const accentColor = ACTION_COLORS[action.type] || colors.blue;
+  const accentColor = ACTION_COLORS[action.type] || colors.actionEmail;
   const iconName = ACTION_ICONS[action.type] || 'ellipse-outline';
 
   // Swipe indicators
@@ -137,16 +137,16 @@ export function SwipeableActionCard({
     <View style={styles.wrapper}>
       {/* Background indicators */}
       <Animated.View style={[styles.indicator, styles.rightIndicator, { opacity: rightOpacity }]}>
-        <Ionicons name="checkmark-circle" size={40} color={colors.success} />
-        <Text style={[styles.indicatorText, { color: colors.success }]}>Done</Text>
+        <Ionicons name="checkmark-circle" size={40} color={colors.forest} />
+        <Text style={[styles.indicatorText, { color: colors.forest }]}>Done</Text>
       </Animated.View>
       <Animated.View style={[styles.indicator, styles.leftIndicator, { opacity: leftOpacity }]}>
         <Ionicons name="close-circle" size={40} color={colors.textMuted} />
         <Text style={[styles.indicatorText, { color: colors.textMuted }]}>Skip</Text>
       </Animated.View>
       <Animated.View style={[styles.indicator, styles.upIndicator, { opacity: upOpacity }]}>
-        <Ionicons name="time" size={40} color={colors.warning} />
-        <Text style={[styles.indicatorText, { color: colors.warning }]}>Later</Text>
+        <Ionicons name="time" size={40} color={colors.amber} />
+        <Text style={[styles.indicatorText, { color: colors.amber }]}>Later</Text>
       </Animated.View>
 
       {/* The card */}
@@ -302,14 +302,14 @@ const styles = StyleSheet.create({
   },
   revBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.success + '15',
+    backgroundColor: colors.forest + '15',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
     marginBottom: 8,
   },
-  revText: { fontSize: sizes.sm, color: colors.success, fontWeight: '600' },
-  timing: { fontSize: sizes.xs, color: colors.warning, marginBottom: 12 },
+  revText: { fontSize: sizes.sm, color: colors.forest, fontWeight: '600' },
+  timing: { fontSize: sizes.xs, color: colors.amber, marginBottom: 12 },
   btnRow: {
     flexDirection: 'row',
     gap: 10,
