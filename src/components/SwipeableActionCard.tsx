@@ -48,10 +48,12 @@ export function SwipeableActionCard({
   const swipeUpThreshold = 120;
 
   // Reset animated values when the action changes (new card appears)
+  // Use action.id + a reset counter to force reset even if same action
+  const [resetCount, setResetCount] = React.useState(0);
   useEffect(() => {
     pan.setValue({ x: 0, y: 0 });
     opacity.setValue(1);
-  }, [action.id, pan, opacity]);
+  }, [action.id, resetCount, pan, opacity]);
 
   // Store callbacks in refs to avoid stale closures in PanResponder
   const callbacksRef = useRef({ onSwipeRight, onSwipeLeft, onSwipeUp });
@@ -59,33 +61,39 @@ export function SwipeableActionCard({
     callbacksRef.current = { onSwipeRight, onSwipeLeft, onSwipeUp };
   }, [onSwipeRight, onSwipeLeft, onSwipeUp]);
 
+  const swipingRef = useRef(false);
+
   const panResponder = useMemo(
     () => PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10,
+        !swipingRef.current && (Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10),
       onPanResponderMove: Animated.event(
         [null, { dx: pan.x, dy: pan.y }],
         { useNativeDriver: false }
       ),
       onPanResponderRelease: (_, g) => {
+        if (swipingRef.current) return;
         if (g.dx > swipeThreshold) {
+          swipingRef.current = true;
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           Animated.parallel([
             Animated.timing(pan.x, { toValue: screenWidth, duration: 200, useNativeDriver: false }),
             Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: false }),
-          ]).start(() => callbacksRef.current.onSwipeRight());
+          ]).start(() => { swipingRef.current = false; callbacksRef.current.onSwipeRight(); });
         } else if (g.dx < -swipeThreshold) {
+          swipingRef.current = true;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           Animated.parallel([
             Animated.timing(pan.x, { toValue: -screenWidth, duration: 200, useNativeDriver: false }),
             Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: false }),
-          ]).start(() => callbacksRef.current.onSwipeLeft());
+          ]).start(() => { swipingRef.current = false; callbacksRef.current.onSwipeLeft(); });
         } else if (g.dy < -swipeUpThreshold) {
+          swipingRef.current = true;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           Animated.parallel([
             Animated.timing(pan.y, { toValue: -600, duration: 250, useNativeDriver: false }),
             Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: false }),
-          ]).start(() => callbacksRef.current.onSwipeUp());
+          ]).start(() => { swipingRef.current = false; callbacksRef.current.onSwipeUp(); });
         } else {
           Animated.spring(pan, {
             toValue: { x: 0, y: 0 },

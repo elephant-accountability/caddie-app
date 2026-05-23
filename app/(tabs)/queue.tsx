@@ -31,6 +31,7 @@ export default function QueueScreen() {
   const [showOutcome, setShowOutcome] = useState(false);
   const [showContactSheet, setShowContactSheet] = useState(false);
   const [showSnoozeSheet, setShowSnoozeSheet] = useState(false);
+  const [swiping, setSwiping] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -44,7 +45,9 @@ export default function QueueScreen() {
   };
 
   const handleSkip = async () => {
-    await skip();
+    if (swiping) return;
+    setSwiping(true);
+    try { await skip(); } finally { setSwiping(false); }
   };
 
   const handleSnooze = async () => {
@@ -53,7 +56,9 @@ export default function QueueScreen() {
 
   const handleSnoozeConfirm = async (hours: number) => {
     setShowSnoozeSheet(false);
-    await snooze(hours);
+    if (swiping) return;
+    setSwiping(true);
+    try { await snooze(hours); } finally { setSwiping(false); }
   };
 
   const handleTapContact = () => {
