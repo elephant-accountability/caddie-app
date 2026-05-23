@@ -9,7 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
+import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../theme/colors';
@@ -18,15 +20,17 @@ import { api } from '../api/client';
 
 /**
  * Persistent floating input — always visible above the tab bar.
- * Tap the mic pill to expand into a text/voice input.
- * Submit sends to /api/conversation/ingest.
+ * Tap pill → expand. Mic button → hold to record, release to send.
+ * Text fallback always available.
  */
 export function FloatingInput() {
   const [expanded, setExpanded] = useState(false);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -35,11 +39,12 @@ export function FloatingInput() {
       duration: 200,
       useNativeDriver: false,
     }).start();
-    if (expanded) {
+    if (expanded && !recording) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [expanded, fadeAnim]);
+  }, [expanded, fadeAnim, recording]);
 
+  // --- Text submit ---
   const handleSubmit = async () => {
     const trimmed = text.trim();
     if (!trimmed || submitting) return;
@@ -64,13 +69,82 @@ export function FloatingInput() {
     }
   };
 
+  // --- Voice recording ---
+  const startRecording = async () => {
+    try {
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        setFeedback('Mic permission needed');
+        return;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+      const { recording: rec } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current = rec;
+      setRecording(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (err) {
+      setFeedback('Could not start recording');
+    }
+  };
+
+  const stopAndSend = async () => {
+    if (!recordingRef.current) return;
+    setRecording(false);
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+
+      if (!uri) {
+        setFeedback('No audio captured');
+        setSubmitting(false);
+        return;
+      }
+
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+
+      const fd = new FormData();
+      fd.append('audio', {
+        uri,
+        name: 'recording.m4a',
+        type: 'audio/m4a',
+      } as any);
+      fd.append('source', 'manual');
+      await api.ingestConversation(fd);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFeedback('Got it');
+      setTimeout(() => {
+        setFeedback(null);
+        setExpanded(false);
+      }, 1500);
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setFeedback(err instanceof Error ? err.message : 'Failed to send');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleClose = () => {
+    if (recordingRef.current) {
+      recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      recordingRef.current = null;
+    }
+    setRecording(false);
     Keyboard.dismiss();
     setExpanded(false);
     setText('');
     setFeedback(null);
   };
 
+  // --- Collapsed pill ---
   if (!expanded) {
     return (
       <View style={styles.pillContainer}>
@@ -87,39 +161,76 @@ export function FloatingInput() {
     );
   }
 
+  // --- Expanded input ---
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={90}
       style={styles.expandedContainer}
     >
-      <Animated.View style={[styles.expandedCard, { opacity: fadeAnim }]}>  
+      <Animated.View style={[styles.expandedCard, { opacity: fadeAnim }]}>
         {feedback && (
           <Text style={styles.feedback}>{feedback}</Text>
         )}
+
+        {submitting ? (
+          <View style={styles.processingRow}>
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+            <Text style={styles.processingText}>Processing...</Text>
+          </View>
+        ) : recording ? (
+          <View style={styles.recordingRow}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>Recording... tap mic to send</Text>
+          </View>
+        ) : null}
+
         <View style={styles.inputRow}>
-          <TextInput
-            ref={inputRef}
-            style={styles.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="Tell Caddie..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={2000}
-            blurOnSubmit={false}
-            onSubmitEditing={handleSubmit}
-          />
+          {!recording && (
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              value={text}
+              onChangeText={setText}
+              placeholder="Tell Caddie..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={2000}
+              blurOnSubmit={false}
+              onSubmitEditing={handleSubmit}
+            />
+          )}
+          {recording && (
+            <View style={styles.recordingFill} />
+          )}
           <View style={styles.btnCol}>
+            {/* Mic / stop button */}
             <Pressable
-              style={[styles.sendBtn, (!text.trim() || submitting) && styles.btnDisabled]}
-              onPress={handleSubmit}
-              disabled={!text.trim() || submitting}
+              style={[styles.micBtn, recording && styles.micBtnRecording]}
+              onPress={recording ? stopAndSend : startRecording}
+              disabled={submitting}
               accessibilityRole="button"
-              accessibilityLabel="Send to Caddie"
+              accessibilityLabel={recording ? 'Stop and send recording' : 'Start voice recording'}
             >
-              <Ionicons name="arrow-up" size={20} color={colors.white} />
+              <Ionicons
+                name={recording ? 'stop' : 'mic'}
+                size={20}
+                color={recording ? colors.rust : colors.white}
+              />
             </Pressable>
+            {/* Send text button (only when text entered, not recording) */}
+            {!recording && text.trim() ? (
+              <Pressable
+                style={[styles.sendBtn, submitting && styles.btnDisabled]}
+                onPress={handleSubmit}
+                disabled={submitting}
+                accessibilityRole="button"
+                accessibilityLabel="Send text to Caddie"
+              >
+                <Ionicons name="arrow-up" size={20} color={colors.white} />
+              </Pressable>
+            ) : null}
+            {/* Close */}
             <Pressable
               style={styles.closeBtn}
               onPress={handleClose}
@@ -138,7 +249,7 @@ export function FloatingInput() {
 const styles = StyleSheet.create({
   pillContainer: {
     position: 'absolute',
-    bottom: 90, // sits above tab bar
+    bottom: 90,
     alignSelf: 'center',
     zIndex: 100,
   },
@@ -187,6 +298,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  processingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  processingText: {
+    fontSize: sizes.sm,
+    color: colors.textSecondary,
+  },
+  recordingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.rust,
+  },
+  recordingText: {
+    fontSize: sizes.sm,
+    color: colors.rust,
+    fontWeight: '600',
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -204,9 +344,26 @@ const styles = StyleSheet.create({
     minHeight: 44,
     textAlignVertical: 'top',
   },
+  recordingFill: {
+    flex: 1,
+    minHeight: 44,
+  },
   btnCol: {
     alignItems: 'center',
     gap: 6,
+  },
+  micBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.navyLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micBtnRecording: {
+    backgroundColor: colors.rust + '30',
+    borderWidth: 2,
+    borderColor: colors.rust,
   },
   sendBtn: {
     width: 40,
