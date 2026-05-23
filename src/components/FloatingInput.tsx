@@ -75,9 +75,10 @@ export function FloatingInput() {
     // Ask Caddie for a response
     try {
       const result = await api.ask({ question: userText, contact_id: '' });
-      if (result.text) {
-        addCaddieResponse(result.text);
-        setCaddieReply(result.text);
+      const reply = result.answer || result.text || '';
+      if (reply) {
+        addCaddieResponse(reply);
+        setCaddieReply(reply);
         setShowReply(true);
         setExpanded(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -172,9 +173,10 @@ export function FloatingInput() {
         addUserMessage(transcript);
         try {
           const result = await api.ask({ question: transcript, contact_id: '' });
-          if (result.text) {
-            addCaddieResponse(result.text);
-            setCaddieReply(result.text);
+          const reply = result.answer || result.text || '';
+          if (reply) {
+            addCaddieResponse(reply);
+            setCaddieReply(reply);
             setShowReply(true);
             setExpanded(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

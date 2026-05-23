@@ -91,6 +91,7 @@ export interface AskRequest {
 
 export interface AskResponse {
   text: string;
+  answer?: string;
   sources: Array<{ title?: string; source: string; chunk?: string }>;
 }
 
