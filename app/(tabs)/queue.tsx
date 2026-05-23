@@ -14,6 +14,8 @@ import { colors } from '../../src/theme/colors';
 import { sizes } from '../../src/theme/typography';
 import { useQueue } from '../../src/context/QueueContext';
 import { SwipeableActionCard } from '../../src/components/SwipeableActionCard';
+// Using ActionCard (button-based) — SwipeableActionCard has PanResponder issues on device
+import { ActionCard } from '../../src/components/ActionCard';
 import { OutcomeModal } from '../../src/components/OutcomeModal';
 import { ContactSheet } from '../../src/components/ContactSheet';
 import { AskInput } from '../../src/components/AskInput';
@@ -82,13 +84,12 @@ export default function QueueScreen() {
             <ActivityIndicator size="large" color={colors.white} />
           </View>
         ) : currentAction ? (
-          <SwipeableActionCard
+          <ActionCard
             action={currentAction}
-            onSwipeRight={() => setShowOutcome(true)}
-            onSwipeLeft={handleSkip}
-            onSwipeUp={handleSnooze}
+            onDone={() => setShowOutcome(true)}
+            onSkip={handleSkip}
+            onSnooze={handleSnooze}
             onTapContact={handleTapContact}
-            onTapAction={() => setShowOutcome(true)}
           />
         ) : (
           <View style={styles.empty}>
