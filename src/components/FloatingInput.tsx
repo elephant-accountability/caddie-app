@@ -17,22 +17,26 @@ import * as Haptics from 'expo-haptics';
 import { colors } from '../theme/colors';
 import { sizes } from '../theme/typography';
 import { api } from '../api/client';
+import { useConversation } from '../context/ConversationContext';
 
 /**
  * Persistent floating input — always visible above the tab bar.
- * Tap pill → expand. Mic button → hold to record, release to send.
- * Text fallback always available.
+ * Text or voice → ingest + ask Caddie → show response below pill.
+ * All exchanges persisted to ConversationContext (SQLite + vault).
  */
 export function FloatingInput() {
+  const { addUserMessage, addCaddieResponse } = useConversation();
   const [expanded, setExpanded] = useState(false);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [recording, setRecording] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false); // brief checkmark on pill
+  const [caddieReply, setCaddieReply] = useState<string | null>(null);
+  const [showReply, setShowReply] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -45,15 +49,53 @@ export function FloatingInput() {
     }
   }, [expanded, fadeAnim, recording]);
 
+  // Auto-dismiss reply after 8 seconds
+  useEffect(() => {
+    if (showReply && caddieReply) {
+      if (replyTimer.current) clearTimeout(replyTimer.current);
+      replyTimer.current = setTimeout(() => {
+        setShowReply(false);
+        setCaddieReply(null);
+      }, 8000);
+    }
+    return () => {
+      if (replyTimer.current) clearTimeout(replyTimer.current);
+    };
+  }, [showReply, caddieReply]);
+
+  const handleResponse = async (userText: string) => {
+    // Store user message in conversation
+    addUserMessage(userText);
+
+    // Ingest into vault (fire-and-forget)
+    const ingestFd = new FormData();
+    ingestFd.append('text', userText);
+    api.ingestConversation(ingestFd).catch(() => {});
+
+    // Ask Caddie for a response
+    try {
+      const result = await api.ask({ question: userText, contact_id: '' });
+      if (result.text) {
+        addCaddieResponse(result.text);
+        setCaddieReply(result.text);
+        setShowReply(true);
+        setExpanded(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      // If ask fails, still confirm the ingest worked
+      setCaddieReply(null);
+      setShowReply(false);
+      showConfirmation();
+    }
+  };
+
   const showConfirmation = () => {
-    // Double haptic — unmistakable
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
     setExpanded(false);
-    setConfirmed(true);
     setText('');
     setFeedback(null);
-    setTimeout(() => setConfirmed(false), 2000);
   };
 
   // --- Text submit ---
@@ -62,11 +104,9 @@ export function FloatingInput() {
     if (!trimmed || submitting) return;
     setSubmitting(true);
     setFeedback(null);
+    setText('');
     try {
-      const fd = new FormData();
-      fd.append('text', trimmed);
-      await api.ingestConversation(fd);
-      showConfirmation();
+      await handleResponse(trimmed);
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setFeedback(err instanceof Error ? err.message : 'Failed');
@@ -93,7 +133,7 @@ export function FloatingInput() {
       recordingRef.current = rec;
       setRecording(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (err) {
+    } catch {
       setFeedback('Could not start recording');
     }
   };
@@ -116,6 +156,7 @@ export function FloatingInput() {
 
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
 
+      // Send audio for transcription + ingest
       const fd = new FormData();
       fd.append('audio', {
         uri,
@@ -123,8 +164,29 @@ export function FloatingInput() {
         type: 'audio/m4a',
       } as any);
       fd.append('source', 'manual');
-      await api.ingestConversation(fd);
-      showConfirmation();
+      const ingestResult = await api.ingestConversation(fd);
+      
+      const transcript = ingestResult.transcript || '';
+      if (transcript) {
+        // Got transcript — now ask Caddie
+        addUserMessage(transcript);
+        try {
+          const result = await api.ask({ question: transcript, contact_id: '' });
+          if (result.text) {
+            addCaddieResponse(result.text);
+            setCaddieReply(result.text);
+            setShowReply(true);
+            setExpanded(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } else {
+            showConfirmation();
+          }
+        } catch {
+          showConfirmation();
+        }
+      } else {
+        showConfirmation();
+      }
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setFeedback(err instanceof Error ? err.message : 'Failed to send');
@@ -145,24 +207,46 @@ export function FloatingInput() {
     setFeedback(null);
   };
 
+  const dismissReply = () => {
+    setShowReply(false);
+    setCaddieReply(null);
+  };
+
+  // --- Reply bubble (shown below pill when Caddie responds) ---
+  if (!expanded && showReply && caddieReply) {
+    return (
+      <View style={styles.replyContainer}>
+        <Pressable style={styles.replyBubble} onPress={dismissReply}>
+          <Text style={styles.replyText} numberOfLines={6}>{caddieReply}</Text>
+          <View style={styles.replyDismiss}>
+            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+          </View>
+        </Pressable>
+        <Pressable
+          style={styles.pill}
+          onPress={() => { dismissReply(); setExpanded(true); }}
+          accessibilityRole="button"
+          accessibilityLabel="Talk to Caddie"
+        >
+          <Ionicons name="mic" size={20} color={colors.white} />
+          <Text style={styles.pillText}>Caddie</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   // --- Collapsed pill ---
   if (!expanded) {
     return (
       <View style={styles.pillContainer}>
         <Pressable
-          style={[styles.pill, confirmed && styles.pillConfirmed]}
-          onPress={() => !confirmed && setExpanded(true)}
+          style={styles.pill}
+          onPress={() => setExpanded(true)}
           accessibilityRole="button"
           accessibilityLabel="Talk to Caddie"
         >
-          <Ionicons
-            name={confirmed ? 'checkmark' : 'mic'}
-            size={20}
-            color={confirmed ? colors.forest : colors.white}
-          />
-          <Text style={[styles.pillText, confirmed && styles.pillTextConfirmed]}>
-            {confirmed ? 'Got it' : 'Caddie'}
-          </Text>
+          <Ionicons name="mic" size={20} color={colors.white} />
+          <Text style={styles.pillText}>Caddie</Text>
         </Pressable>
       </View>
     );
@@ -183,7 +267,7 @@ export function FloatingInput() {
         {submitting ? (
           <View style={styles.processingRow}>
             <ActivityIndicator size="small" color={colors.textSecondary} />
-            <Text style={styles.processingText}>Processing...</Text>
+            <Text style={styles.processingText}>Thinking...</Text>
           </View>
         ) : recording ? (
           <View style={styles.recordingRow}>
@@ -199,7 +283,7 @@ export function FloatingInput() {
               style={styles.input}
               value={text}
               onChangeText={setText}
-              placeholder="Tell Caddie..."
+              placeholder="Ask Caddie..."
               placeholderTextColor={colors.textMuted}
               multiline
               maxLength={2000}
@@ -232,7 +316,7 @@ export function FloatingInput() {
                 onPress={handleSubmit}
                 disabled={submitting}
                 accessibilityRole="button"
-                accessibilityLabel="Send text to Caddie"
+                accessibilityLabel="Send to Caddie"
               >
                 <Ionicons name="arrow-up" size={20} color={colors.white} />
               </Pressable>
@@ -279,14 +363,43 @@ const styles = StyleSheet.create({
     fontSize: sizes.sm,
     fontWeight: '700',
   },
-  pillConfirmed: {
-    backgroundColor: colors.forest + '30',
+
+  // Reply bubble
+  replyContainer: {
+    position: 'absolute',
+    bottom: 90,
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  replyBubble: {
+    backgroundColor: colors.bgCard,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: colors.forest,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    width: '100%',
+    flexDirection: 'row',
+    gap: 8,
   },
-  pillTextConfirmed: {
-    color: colors.forest,
+  replyText: {
+    flex: 1,
+    fontSize: sizes.sm,
+    color: colors.textPrimary,
+    lineHeight: 20,
   },
+  replyDismiss: {
+    paddingTop: 2,
+  },
+
+  // Expanded
   expandedContainer: {
     position: 'absolute',
     bottom: 90,
@@ -309,7 +422,7 @@ const styles = StyleSheet.create({
   feedback: {
     fontSize: sizes.sm,
     fontWeight: '600',
-    color: colors.forest,
+    color: colors.rust,
     textAlign: 'center',
     marginBottom: 8,
   },

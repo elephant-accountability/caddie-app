@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '../src/theme/colors';
 import { QueueProvider } from '../src/context/QueueContext';
+import { ConversationProvider } from '../src/context/ConversationContext';
 import { AuthProvider, useAuth } from '../src/auth/AuthContext';
 import { LoginScreen } from '../src/components/LoginScreen';
 import { View } from 'react-native';
@@ -11,7 +12,6 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    // Could add a splash screen here
     return <View style={{ flex: 1, backgroundColor: colors.navy }} />;
   }
 
@@ -21,16 +21,18 @@ function AppContent() {
 
   return (
     <QueueProvider>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.navy },
-          animation: 'fade',
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <ConversationProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.navy },
+            animation: 'fade',
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </ConversationProvider>
     </QueueProvider>
   );
 }
