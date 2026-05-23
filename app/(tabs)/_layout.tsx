@@ -15,7 +15,7 @@ export default function TabLayout() {
           paddingBottom: 4,
           height: 84,
         },
-        tabBarActiveTintColor: colors.blue,
+        tabBarActiveTintColor: colors.white,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontSize: sizes.xs,
@@ -37,7 +37,7 @@ export default function TabLayout() {
         options={{
           title: 'Queue',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="layers-outline" size={size} color={color} />
+            <Ionicons name="list-outline" size={size} color={color} />
           ),
         }}
       />
@@ -51,11 +51,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="vault"
+        options={{
+          title: 'Vault',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="archivebox-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cog-outline" size={size} color={color} />
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />

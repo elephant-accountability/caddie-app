@@ -21,10 +21,10 @@ const OUTCOMES: ReadonlyArray<{
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
 }> = [
-  { key: 'completed', label: 'Connected', icon: 'checkmark-circle', color: colors.success },
+  { key: 'completed', label: 'Connected', icon: 'checkmark-circle', color: colors.forest },
   { key: 'voicemail', label: 'Voicemail', icon: 'recording-outline', color: colors.actionEmail },
-  { key: 'no_answer', label: 'No answer', icon: 'call-outline', color: colors.warning },
-  { key: 'callback', label: 'Call back', icon: 'time-outline', color: colors.blueLight },
+  { key: 'no_answer', label: 'No answer', icon: 'call-outline', color: colors.amber },
+  { key: 'callback', label: 'Call back', icon: 'time-outline', color: colors.steel },
   { key: 'not_relevant', label: 'Not relevant', icon: 'close-circle-outline', color: colors.textMuted },
 ];
 
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: colors.blue,
+    backgroundColor: colors.navyLight,
   },
   submitDisabled: {
     opacity: 0.4,

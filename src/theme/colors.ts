@@ -1,37 +1,45 @@
-// Caddie dark theme — industrial palette from Blue Brand System v3
-// Job site at 6 AM. Concrete grays, safety orange, hard-hat yellow, sky blue.
+// Caddie EDC — Brand Color System
+// Navy, Slate, White. Industrial. No gradients, no shadows.
 
 export const colors = {
-  // Backgrounds
-  bg: '#0A0F1C',
-  bgCard: '#131A2B',
-  bgCardPressed: '#1A2236',
-  bgInput: '#1A2236',
-
-  // Text
-  textPrimary: '#E8ECF4',
-  textSecondary: '#8B95A8',
-  textMuted: '#5A6478',
-
-  // Brand
-  blue: '#3B82F6',
-  blueLight: '#60A5FA',
-  blueDark: '#1D4ED8',
-
-  // Action types
-  actionCall: '#22C55E',
-  actionEmail: '#3B82F6',
-  actionResearch: '#A855F7',
-  actionSms: '#F59E0B',
-
+  // Primary brand
+  navy: '#1B2A4A',
+  navyLight: '#243B5D',
+  
+  // Secondary
+  slate: '#4A5568',
+  slateLight: '#718096',
+  
+  // Neutrals
+  white: '#FFFFFF',
+  ice: '#F7FAFC',
+  steel: '#A0AEC0',
+  
   // Status
-  success: '#22C55E',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-
+  forest: '#38A169',
+  amber: '#D69E2E',
+  rust: '#E53E3E',
+  
+  // Backgrounds (dark mode default for field use)
+  bg: '#1B2A4A',
+  bgCard: '#243B5D',
+  bgCardPressed: '#2D4A6F',
+  bgInput: '#243B5D',
+  
+  // Text
+  textPrimary: '#FFFFFF',
+  textSecondary: '#A0AEC0',
+  textMuted: '#718096',
+  
   // Borders
-  border: '#1E293B',
-  borderLight: '#334155',
+  border: '#3D5A80',
+  borderLight: '#4A6FA5',
+  
+  // Action type accents (subtle, not garish)
+  actionCall: '#38A169',
+  actionEmail: '#63B3ED',
+  actionSms: '#D69E2E',
+  actionResearch: '#B794F4',
 } as const;
 
 export type ColorKey = keyof typeof colors;

@@ -1,7 +1,11 @@
 import Constants from 'expo-constants';
+import { getToken } from '../auth/tokens';
 import type {
   QueueResponse, OutcomeRequest, OutcomeResponse,
-  DraftResponse, HealthResponse
+  DraftResponse, HealthResponse, AuthIssueRequest, AuthIssueResponse,
+  ContextResponse, AskRequest, AskResponse, HistoryResponse,
+  QuotaResponse, ConversationIngestResponse, PushTokenRequest,
+  VaultUploadsResponse,
 } from '../types/api';
 
 const API_BASE = Constants.expoConfig?.extra?.apiUrl
@@ -13,11 +17,14 @@ const MAX_RETRIES = 2;
 
 class CaddieAPI {
   private baseUrl: string;
-  private repId: string;
 
-  constructor(baseUrl: string = API_BASE, repId: string = 'chris-kenney') {
+  constructor(baseUrl: string = API_BASE) {
     this.baseUrl = baseUrl;
-    this.repId = repId;
+  }
+
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const token = await getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   private async fetchWithTimeout<T>(
@@ -29,12 +36,12 @@ class CaddieAPI {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+    const authHeaders = await this.getAuthHeaders();
     const headers: Record<string, string> = {
-      'X-Caddie-Rep-Id': this.repId,
+      ...authHeaders,
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    // Only set Content-Type for JSON bodies
     if (options.body && typeof options.body === 'string') {
       headers['Content-Type'] = 'application/json';
     }
@@ -59,7 +66,6 @@ class CaddieAPI {
 
       return response.json();
     } catch (err) {
-      // Retry on network errors (not 4xx/5xx)
       if (retries < MAX_RETRIES && err instanceof TypeError) {
         await new Promise(r => setTimeout(r, 1000 * (retries + 1)));
         return this.fetchWithTimeout<T>(path, options, retries + 1);
@@ -73,12 +79,20 @@ class CaddieAPI {
     }
   }
 
+  // Auth
+  async issueToken(data: AuthIssueRequest): Promise<AuthIssueResponse> {
+    return this.fetchWithTimeout<AuthIssueResponse>('/api/auth/issue', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Queue
   async getQueue(): Promise<QueueResponse> {
     return this.fetchWithTimeout<QueueResponse>('/api/queue');
   }
 
-  // Mark action done
+  // Outcome
   async submitOutcome(data: OutcomeRequest): Promise<OutcomeResponse> {
     return this.fetchWithTimeout<OutcomeResponse>('/api/outcome', {
       method: 'POST',
@@ -86,51 +100,74 @@ class CaddieAPI {
     });
   }
 
-  // Skip current action
-  async skip(): Promise<{ status: string }> {
-    return this.fetchWithTimeout<{ status: string }>('/api/skip', { method: 'POST' });
+  // Skip
+  async skip(actionId: string): Promise<{ status: string }> {
+    return this.fetchWithTimeout<{ status: string }>('/api/skip', {
+      method: 'POST',
+      body: JSON.stringify({ action_id: actionId }),
+    });
   }
 
-  // Snooze current action
-  async snooze(hours: number = 4): Promise<{ status: string }> {
+  // Snooze
+  async snooze(actionId: string, hours: number = 4): Promise<{ status: string }> {
     return this.fetchWithTimeout<{ status: string }>('/api/snooze', {
       method: 'POST',
-      body: JSON.stringify({ hours }),
+      body: JSON.stringify({ action_id: actionId, hours }),
     });
   }
 
-  // Voice / text touch logging — backend expects FormData, not JSON
-  async ingestConversation(text: string): Promise<{ status: string }> {
-    const formData = new FormData();
-    formData.append('text', text);
-    return this.fetchWithTimeout<{ status: string }>('/api/conversation/ingest', {
+  // Context
+  async getContext(contactId: string): Promise<ContextResponse> {
+    return this.fetchWithTimeout<ContextResponse>(`/api/context/${contactId}`);
+  }
+
+  // Ask
+  async ask(data: AskRequest): Promise<AskResponse> {
+    return this.fetchWithTimeout<AskResponse>('/api/ask', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // History
+  async getHistory(): Promise<HistoryResponse> {
+    return this.fetchWithTimeout<HistoryResponse>('/api/history');
+  }
+
+  // Quota
+  async getQuota(): Promise<QuotaResponse> {
+    return this.fetchWithTimeout<QuotaResponse>('/api/quota');
+  }
+
+  // Voice / text ingest
+  async ingestConversation(formData: FormData): Promise<ConversationIngestResponse> {
+    return this.fetchWithTimeout<ConversationIngestResponse>('/api/conversation/ingest', {
       method: 'POST',
       body: formData,
-      // Don't set Content-Type — fetch auto-sets multipart boundary
     });
   }
 
-  // Health check
-  async health(): Promise<HealthResponse> {
-    return this.fetchWithTimeout<HealthResponse>('/api/health');
-  }
-
-  // Get action context
-  async getContext(contactId: string): Promise<Record<string, unknown>> {
-    return this.fetchWithTimeout<Record<string, unknown>>('/api/context/' + contactId);
-  }
-
-  // Get action draft (email/sms)
+  // Draft
   async getDraft(actionId: string): Promise<DraftResponse> {
-    return this.fetchWithTimeout<DraftResponse>('/api/actions/' + actionId + '/draft');
+    return this.fetchWithTimeout<DraftResponse>(`/api/actions/${actionId}/draft`);
   }
 
-  // Register push notification token
+  // Push token
   async registerPushToken(token: string): Promise<{ status: string }> {
     return this.fetchWithTimeout<{ status: string }>('/api/push-token', {
       method: 'POST',
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token } as PushTokenRequest),
     });
+  }
+
+  // Vault uploads list
+  async getVaultUploads(): Promise<VaultUploadsResponse> {
+    return this.fetchWithTimeout<VaultUploadsResponse>('/api/vault/uploads');
+  }
+
+  // Health
+  async health(): Promise<HealthResponse> {
+    return this.fetchWithTimeout<HealthResponse>('/api/health');
   }
 }
 

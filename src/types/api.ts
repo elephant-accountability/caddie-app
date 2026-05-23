@@ -6,6 +6,7 @@ export interface Action {
   type: ActionType;
   account: string;
   contact: string | null;
+  contact_id?: string;
   phone: string | null;
   product: string | null;
   reason: string;
@@ -52,4 +53,81 @@ export interface HealthResponse {
   version?: string;
   queue_cached?: boolean;
   db_connected?: boolean;
+}
+
+export interface AuthIssueRequest {
+  rep_id: string;
+  signup_secret: string;
+}
+
+export interface AuthIssueResponse {
+  token: string;
+  expires_at: number;
+}
+
+export interface ContextResponse {
+  contact_id: string;
+  contact_name: string | null;
+  company: string;
+  role?: string;
+  phone?: string;
+  email?: string;
+  total_revenue?: number;
+  deal_count?: number;
+  days_since_contact?: number;
+  rsi?: number;
+  products?: string[];
+  why_recommended?: string;
+  signals?: Array<{ type: string; description: string }>;
+}
+
+export interface AskRequest {
+  question: string;
+  contact_id: string;
+}
+
+export interface AskResponse {
+  text: string;
+  sources: Array<{ title?: string; source: string; chunk?: string }>;
+}
+
+export interface HistoryItem {
+  action_id: string;
+  contact_name: string;
+  account_name: string;
+  outcome: string;
+  timestamp?: string;
+}
+
+export interface HistoryResponse {
+  actions: HistoryItem[];
+}
+
+export interface QuotaResponse {
+  target: number;
+  ytd: number;
+  attainment_pct: number;
+  pace_status: string;
+}
+
+export interface ConversationIngestResponse {
+  transcript?: string;
+  extracted?: any[];
+  stored_record_ids?: string[];
+}
+
+export interface PushTokenRequest {
+  token: string;
+}
+
+export interface VaultUpload {
+  id: string;
+  filename?: string;
+  upload_date?: string;
+  chunk_count?: number;
+}
+
+export interface VaultUploadsResponse {
+  uploads: VaultUpload[];
+  count: number;
 }

@@ -72,7 +72,7 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
       {/* Revenue opportunity */}
       {totalRevMax > 0 && (
         <View style={styles.revCard}>
-          <Ionicons name="trending-up" size={18} color={colors.success} />
+          <Ionicons name="trending-up" size={18} color={colors.forest} />
           <Text style={styles.revText}>
             ${Math.round(totalRevMin).toLocaleString()}\u2013${Math.round(totalRevMax).toLocaleString()} in pipeline across today's actions
           </Text>
@@ -100,7 +100,7 @@ export function MorningBrief({ actions, date }: MorningBriefProps) {
       {/* Top actions preview */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="flash-outline" size={16} color={colors.warning} />
+          <Ionicons name="flash-outline" size={16} color={colors.amber} />
           <Text style={styles.sectionTitle}>Priority actions</Text>
         </View>
         {actions.slice(0, 5).map((a, i) => (
@@ -175,14 +175,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.success + '10',
+    backgroundColor: colors.forest + '10',
     borderRadius: 10,
     padding: 12,
     marginBottom: 20,
   },
   revText: {
     fontSize: sizes.sm,
-    color: colors.success,
+    color: colors.forest,
     flex: 1,
   },
   section: {

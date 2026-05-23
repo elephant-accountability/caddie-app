@@ -60,7 +60,7 @@ export function VoiceCapture({ placeholder }: VoiceCaptureProps) {
       {feedback && (
         <Text style={[
           styles.feedback,
-          { color: feedback.type === 'success' ? colors.success : colors.danger },
+          { color: feedback.type === 'success' ? colors.forest : colors.rust },
         ]}>
           {feedback.msg}
         </Text>
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.blue,
+    backgroundColor: colors.navyLight,
     paddingVertical: 14,
     borderRadius: 12,
   },

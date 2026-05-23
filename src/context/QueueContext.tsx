@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { api } from '../api/client';
+import { enqueueOutcome, enqueueSkip, enqueueSnooze, saveQueueCache, loadQueueCache } from '../offline/db';
 import type { Action, QueueResponse, OutcomeType, Quota } from '../types/api';
 
 interface QueueContextType {
@@ -35,8 +36,23 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       setActions(data.actions);
       setCurrentIndex(data.current_index);
       setQuota(data.quota);
+      // Cache for offline
+      await saveQueueCache(data, 'current');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load queue');
+      // Try offline cache fallback
+      try {
+        const cached = await loadQueueCache();
+        if (cached) {
+          setActions(cached.actions || []);
+          setCurrentIndex(cached.current_index || 0);
+          setQuota(cached.quota || null);
+          setError('Offline mode — showing cached queue');
+        } else {
+          setError(e instanceof Error ? e.message : 'Failed to load queue');
+        }
+      } catch {
+        setError(e instanceof Error ? e.message : 'Failed to load queue');
+      }
     } finally {
       setLoading(false);
     }
@@ -54,6 +70,9 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     setMutating(true);
     setError(null);
     try {
+      // Write to offline outbox first
+      await enqueueOutcome(currentAction.id, outcome, note);
+      // Then try to sync immediately
       const result = await api.submitOutcome({
         action_id: currentAction.id,
         outcome,
@@ -61,7 +80,9 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       });
       setCurrentIndex(result.current_index ?? currentIndex + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to log outcome');
+      setError(e instanceof Error ? e.message : 'Failed to log outcome (saved for sync)');
+      // Still advance index locally — outbox will retry
+      setCurrentIndex(i => i + 1);
     } finally {
       setMutating(false);
     }
@@ -72,28 +93,36 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     setMutating(true);
     setError(null);
     try {
+      if (currentAction) {
+        await enqueueSkip(currentAction.id);
+      }
       await api.skip();
       setCurrentIndex(i => i + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to skip');
+      setError(e instanceof Error ? e.message : 'Failed to skip (saved for sync)');
+      setCurrentIndex(i => i + 1);
     } finally {
       setMutating(false);
     }
-  }, [mutating]);
+  }, [mutating, currentAction]);
 
   const snooze = useCallback(async (hours: number = 4) => {
     if (mutating) return;
     setMutating(true);
     setError(null);
     try {
+      if (currentAction) {
+        await enqueueSnooze(currentAction.id, hours);
+      }
       await api.snooze(hours);
       setCurrentIndex(i => i + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to snooze');
+      setError(e instanceof Error ? e.message : 'Failed to snooze (saved for sync)');
+      setCurrentIndex(i => i + 1);
     } finally {
       setMutating(false);
     }
-  }, [mutating]);
+  }, [mutating, currentAction]);
 
   return (
     <QueueContext.Provider value={{

@@ -27,7 +27,9 @@
       },
       "package": "com.elephantaccountability.caddie",
       "permissions": [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -54,11 +56,13 @@
     "extra": {
       "apiUrl": "https://caddie-core.fly.dev",
       "eas": {
-        "projectId": ""
-      }
+        "projectId": "346f6991-d682-44e3-aad8-6341b1fddc34"
+      },
+      "router": {}
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "chris-caddieedc"
   }
 }
