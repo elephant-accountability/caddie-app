@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
   Linking,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -32,10 +33,11 @@ interface Props {
   onSkip: () => void;
   onSnooze: () => void;
   onTapContact: () => void;
+  onShare?: () => void;
 }
 
 export function ActionCard({
-  action, onDone, onSkip, onSnooze, onTapContact,
+  action, onDone, onSkip, onSnooze, onTapContact, onShare,
 }: Props) {
   const accentColor = ACTION_COLORS[action.type] || colors.white;
   const iconName = ACTION_ICONS[action.type] || 'ellipse-outline';
@@ -60,6 +62,26 @@ export function ActionCard({
       const cleaned = action.phone.replace(/[^0-9+]/g, '');
       Linking.openURL('tel:' + cleaned);
     }
+  };
+
+  const handleWebsite = () => {
+    if (action.website) {
+      Linking.openURL(action.website);
+    }
+  };
+
+  const handleShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const name = action.contact || action.account;
+    const lines = [name];
+    if (action.account && action.contact) lines.push(action.account);
+    if (action.reason) lines.push(action.reason);
+    if (action.phone) lines.push(action.phone);
+    if (action.website) lines.push(action.website);
+    try {
+      await Share.share({ message: lines.join('\n') });
+      onShare?.();
+    } catch {}
   };
 
   return (
@@ -114,6 +136,14 @@ export function ActionCard({
         </Pressable>
       )}
 
+      {/* Website link */}
+      {action.website && (
+        <Pressable style={styles.webBtn} onPress={handleWebsite} accessibilityRole="link">
+          <Ionicons name="globe-outline" size={16} color={colors.actionEmail} />
+          <Text style={styles.webText} numberOfLines={1}>{action.website.replace('https://', '')}</Text>
+        </Pressable>
+      )}
+
       {/* Action buttons */}
       <View style={styles.btnRow}>
         <Pressable
@@ -134,6 +164,16 @@ export function ActionCard({
         >
           <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
           <Text style={styles.snoozeText}>Later</Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.btn, styles.shareBtn]}
+          onPress={handleShare}
+          accessibilityRole="button"
+          accessibilityLabel="Share lead"
+        >
+          <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+          <Text style={styles.shareText}>Share</Text>
         </Pressable>
 
         <Pressable
@@ -249,4 +289,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   doneText: { color: colors.navy, fontSize: sizes.sm, fontWeight: '700' },
+  shareBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  shareText: { color: colors.textSecondary, fontSize: sizes.sm, fontWeight: '600' },
+  webBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  webText: {
+    fontSize: sizes.sm,
+    color: colors.actionEmail,
+    textDecorationLine: 'underline',
+    flex: 1,
+  },
 });

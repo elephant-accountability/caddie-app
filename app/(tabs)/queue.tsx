@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../src/theme/colors';
 import { sizes } from '../../src/theme/typography';
 import { useQueue } from '../../src/context/QueueContext';
+import { api } from '../../src/api/client';
 import { SwipeableActionCard } from '../../src/components/SwipeableActionCard';
 // Using ActionCard (button-based) — SwipeableActionCard has PanResponder issues on device
 import { ActionCard } from '../../src/components/ActionCard';
@@ -90,6 +91,9 @@ export default function QueueScreen() {
             onSkip={handleSkip}
             onSnooze={handleSnooze}
             onTapContact={handleTapContact}
+            onShare={() => {
+              api.share(currentAction.id, currentAction.contact_id, currentAction.account).catch(() => {});
+            }}
           />
         ) : (
           <View style={styles.empty}>

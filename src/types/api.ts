@@ -8,6 +8,7 @@ export interface Action {
   contact: string | null;
   contact_id?: string;
   phone: string | null;
+  website: string | null;
   product: string | null;
   reason: string;
   supporting: string;

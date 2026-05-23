@@ -5,11 +5,13 @@ import {
   StyleSheet,
   Pressable,
   Linking,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../theme/colors';
 import { sizes } from '../theme/typography';
+import { api } from '../api/client';
 import type { Action } from '../types/api';
 
 interface MorningBriefProps {
@@ -41,6 +43,26 @@ function ExpandedCard({ action, onSkip, onSnooze, onDone, onCollapse }: {
       const cleaned = action.phone.replace(/[^0-9+]/g, '');
       Linking.openURL('tel:' + cleaned);
     }
+  };
+
+  const handleWebsite = () => {
+    if (action.website) {
+      Linking.openURL(action.website);
+    }
+  };
+
+  const handleShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const name = action.contact || action.account;
+    const lines = [name];
+    if (action.account && action.contact) lines.push(action.account);
+    if (action.reason) lines.push(action.reason);
+    if (action.phone) lines.push(action.phone);
+    if (action.website) lines.push(action.website);
+    try {
+      await Share.share({ message: lines.join('\n') });
+      api.share(action.id, action.contact_id, action.account).catch(() => {});
+    } catch {}
   };
 
   return (
@@ -76,13 +98,24 @@ function ExpandedCard({ action, onSkip, onSnooze, onDone, onCollapse }: {
         </Pressable>
       )}
 
-      {/* Skip / Later / Done */}
+      {/* Website link */}
+      {action.website && (
+        <Pressable style={es.webBtn} onPress={handleWebsite} accessibilityRole="link">
+          <Ionicons name="globe-outline" size={16} color={colors.actionEmail} />
+          <Text style={es.webText} numberOfLines={1}>{action.website.replace('https://', '')}</Text>
+        </Pressable>
+      )}
+
+      {/* Skip / Later / Share / Done */}
       <View style={es.btnRow}>
         <Pressable style={es.btn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSkip?.(); }}>
           <Text style={es.btnText}>Skip</Text>
         </Pressable>
         <Pressable style={es.btn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSnooze?.(); }}>
           <Text style={es.btnText}>Later</Text>
+        </Pressable>
+        <Pressable style={es.btn} onPress={handleShare}>
+          <Ionicons name="share-outline" size={16} color={colors.textSecondary} />
         </Pressable>
         <Pressable style={[es.btn, es.doneBtn]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDone?.(); }}>
           <Text style={es.doneBtnText}>Done</Text>
@@ -258,6 +291,19 @@ const es = StyleSheet.create({
     marginBottom: 10,
   },
   actionBtnText: { fontSize: sizes.base, fontWeight: '700', color: colors.navy },
+  webBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  webText: {
+    fontSize: sizes.sm,
+    color: colors.actionEmail,
+    textDecorationLine: 'underline',
+    flex: 1,
+  },
   btnRow: {
     flexDirection: 'row',
     gap: 8,

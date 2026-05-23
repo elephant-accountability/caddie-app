@@ -117,6 +117,13 @@ class CaddieAPI {
     });
   }
 
+  async share(actionId: string, contactId?: string, account?: string): Promise<{ status: string; follow_up: string }> {
+    return this.fetchWithTimeout<{ status: string; follow_up: string }>('/api/share', {
+      method: 'POST',
+      body: JSON.stringify({ action_id: actionId, contact_id: contactId, account, shared_via: 'native' }),
+    });
+  }
+
   // Context
   async getContext(contactId: string): Promise<ContextResponse> {
     return this.fetchWithTimeout<ContextResponse>(`/api/context/${contactId}`);
