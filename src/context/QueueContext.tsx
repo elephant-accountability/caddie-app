@@ -96,7 +96,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       if (currentAction) {
         await enqueueSkip(currentAction.id);
       }
-      await api.skip();
+      await api.skip(currentAction?.id);
       setCurrentIndex(i => i + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to skip (saved for sync)');
@@ -114,7 +114,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       if (currentAction) {
         await enqueueSnooze(currentAction.id, hours);
       }
-      await api.snooze(hours);
+      await api.snooze(currentAction?.id, hours);
       setCurrentIndex(i => i + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to snooze (saved for sync)');

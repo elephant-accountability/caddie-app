@@ -101,7 +101,7 @@ class CaddieAPI {
   }
 
   // Skip
-  async skip(actionId: string): Promise<{ status: string }> {
+  async skip(actionId?: string): Promise<{ status: string }> {
     return this.fetchWithTimeout<{ status: string }>('/api/skip', {
       method: 'POST',
       body: JSON.stringify({ action_id: actionId }),
@@ -109,7 +109,7 @@ class CaddieAPI {
   }
 
   // Snooze
-  async snooze(actionId: string, hours: number = 4): Promise<{ status: string }> {
+  async snooze(actionId?: string, hours: number = 4): Promise<{ status: string }> {
     return this.fetchWithTimeout<{ status: string }>('/api/snooze', {
       method: 'POST',
       body: JSON.stringify({ action_id: actionId, hours }),

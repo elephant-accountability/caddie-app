@@ -55,28 +55,28 @@ export function useQueue() {
     setMutating(true);
     setError(null);
     try {
-      const result = await api.skip();
+      const result = await api.skip(currentAction?.id);
       setCurrentIndex(i => i + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to skip');
     } finally {
       setMutating(false);
     }
-  }, [mutating]);
+  }, [currentAction, mutating]);
 
   const snooze = useCallback(async (hours: number = 4) => {
     if (mutating) return;
     setMutating(true);
     setError(null);
     try {
-      await api.snooze(hours);
+      await api.snooze(currentAction?.id, hours);
       setCurrentIndex(i => i + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to snooze');
     } finally {
       setMutating(false);
     }
-  }, [mutating]);
+  }, [currentAction, mutating]);
 
   return {
     actions,
