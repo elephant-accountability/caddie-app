@@ -37,8 +37,13 @@ export default function QueueScreen() {
   const {
     actions, currentAction, currentIndex, remaining, quota,
     loading, error, mutating, refresh, complete, skip, snooze,
-    skipAction, snoozeAction, completeAction,
+    skipAction: skipActionCtx, snoozeAction: snoozeActionCtx, completeAction: completeActionCtx,
   } = useQueue();
+
+  // Fallbacks in case context doesn't have the new methods yet
+  const skipAction = skipActionCtx || (async (_a: Action) => { await skip(); });
+  const snoozeAction = snoozeActionCtx || (async (_a: Action) => { await snooze(); });
+  const completeAction = completeActionCtx || (async (_a: Action, outcome: OutcomeType, note?: string) => { await complete(outcome, note); });
 
   const [refreshing, setRefreshing] = useState(false);
   const [showOutcome, setShowOutcome] = useState(false);
@@ -180,7 +185,7 @@ export default function QueueScreen() {
                           <Text style={styles.expandedAccount}>{action.account}</Text>
                         )}
 
-                        <Text style={styles.expandedReason}>{action.reason}</Text>
+                        <Text style={styles.expandedReason}>{action.reason || ''}</Text>
 
                         {action.supporting ? (
                           <Text style={styles.expandedSupporting} numberOfLines={4}>{action.supporting}</Text>
@@ -242,7 +247,7 @@ export default function QueueScreen() {
                           {action.contact || action.account}
                         </Text>
                         <Text style={styles.listReason} numberOfLines={1}>
-                          {action.reason.split(/[.,]/)[0]}
+                          {(action.reason || '').split(/[.,]/)[0] || action.account}
                         </Text>
                       </View>
                       <View style={[styles.typePill, { backgroundColor: accentColor + '20' }]}>

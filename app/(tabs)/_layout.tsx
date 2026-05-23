@@ -47,9 +47,9 @@ export default function TabLayout() {
         <Tabs.Screen
           name="log"
           options={{
-            title: 'Log',
+            title: 'Chat',
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="mic-outline" size={size} color={color} />
+              <Ionicons name="chatbubble-outline" size={size} color={color} />
             ),
           }}
         />
