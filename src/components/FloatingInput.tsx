@@ -29,6 +29,7 @@ export function FloatingInput() {
   const [submitting, setSubmitting] = useState(false);
   const [recording, setRecording] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false); // brief checkmark on pill
   const inputRef = useRef<TextInput>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -44,6 +45,17 @@ export function FloatingInput() {
     }
   }, [expanded, fadeAnim, recording]);
 
+  const showConfirmation = () => {
+    // Double haptic — unmistakable
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
+    setExpanded(false);
+    setConfirmed(true);
+    setText('');
+    setFeedback(null);
+    setTimeout(() => setConfirmed(false), 2000);
+  };
+
   // --- Text submit ---
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -54,13 +66,7 @@ export function FloatingInput() {
       const fd = new FormData();
       fd.append('text', trimmed);
       await api.ingestConversation(fd);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setFeedback('Got it');
-      setText('');
-      setTimeout(() => {
-        setFeedback(null);
-        setExpanded(false);
-      }, 1500);
+      showConfirmation();
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setFeedback(err instanceof Error ? err.message : 'Failed');
@@ -118,12 +124,7 @@ export function FloatingInput() {
       } as any);
       fd.append('source', 'manual');
       await api.ingestConversation(fd);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setFeedback('Got it');
-      setTimeout(() => {
-        setFeedback(null);
-        setExpanded(false);
-      }, 1500);
+      showConfirmation();
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setFeedback(err instanceof Error ? err.message : 'Failed to send');
@@ -149,13 +150,19 @@ export function FloatingInput() {
     return (
       <View style={styles.pillContainer}>
         <Pressable
-          style={styles.pill}
-          onPress={() => setExpanded(true)}
+          style={[styles.pill, confirmed && styles.pillConfirmed]}
+          onPress={() => !confirmed && setExpanded(true)}
           accessibilityRole="button"
           accessibilityLabel="Talk to Caddie"
         >
-          <Ionicons name="mic" size={20} color={colors.white} />
-          <Text style={styles.pillText}>Caddie</Text>
+          <Ionicons
+            name={confirmed ? 'checkmark' : 'mic'}
+            size={20}
+            color={confirmed ? colors.forest : colors.white}
+          />
+          <Text style={[styles.pillText, confirmed && styles.pillTextConfirmed]}>
+            {confirmed ? 'Got it' : 'Caddie'}
+          </Text>
         </Pressable>
       </View>
     );
@@ -271,6 +278,14 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: sizes.sm,
     fontWeight: '700',
+  },
+  pillConfirmed: {
+    backgroundColor: colors.forest + '30',
+    borderWidth: 1,
+    borderColor: colors.forest,
+  },
+  pillTextConfirmed: {
+    color: colors.forest,
   },
   expandedContainer: {
     position: 'absolute',
