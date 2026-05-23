@@ -16,6 +16,10 @@ interface QueueContextType {
   complete: (outcome: OutcomeType, note?: string) => Promise<void>;
   skip: () => Promise<void>;
   snooze: (hours?: number) => Promise<void>;
+  /** Act on any action by reference (removes from array, fires API) */
+  skipAction: (action: Action) => Promise<void>;
+  snoozeAction: (action: Action, hours?: number) => Promise<void>;
+  completeAction: (action: Action, outcome: OutcomeType, note?: string) => Promise<void>;
 }
 
 const QueueContext = createContext<QueueContextType | null>(null);
@@ -121,6 +125,46 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     }
   }, [mutating, currentAction]);
 
+  // Remove an action from the array by id (for acting on non-current items)
+  const removeAction = useCallback((actionId: string) => {
+    setActions(prev => {
+      const idx = prev.findIndex(a => a.id === actionId);
+      if (idx === -1) return prev;
+      const next = prev.filter(a => a.id !== actionId);
+      // If removed item was before or at currentIndex, shift index back
+      if (idx < currentIndex) {
+        setCurrentIndex(i => Math.max(0, i - 1));
+      } else if (idx === currentIndex && currentIndex >= next.length) {
+        setCurrentIndex(Math.max(0, next.length - 1));
+      }
+      return next;
+    });
+  }, [currentIndex]);
+
+  const skipAction = useCallback(async (action: Action) => {
+    removeAction(action.id);
+    try {
+      await enqueueSkip(action.id);
+      api.skip(action.id).catch(() => {});
+    } catch {}
+  }, [removeAction]);
+
+  const snoozeAction = useCallback(async (action: Action, hours: number = 4) => {
+    removeAction(action.id);
+    try {
+      await enqueueSnooze(action.id, hours);
+      api.snooze(action.id, hours).catch(() => {});
+    } catch {}
+  }, [removeAction]);
+
+  const completeAction = useCallback(async (action: Action, outcome: OutcomeType, note?: string) => {
+    removeAction(action.id);
+    try {
+      await enqueueOutcome(action.id, outcome, note);
+      api.submitOutcome({ action_id: action.id, outcome, note }).catch(() => {});
+    } catch {}
+  }, [removeAction]);
+
   return (
     <QueueContext.Provider value={{
       actions,
@@ -135,6 +179,9 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       complete,
       skip,
       snooze,
+      skipAction,
+      snoozeAction,
+      completeAction,
     }}>
       {children}
     </QueueContext.Provider>
