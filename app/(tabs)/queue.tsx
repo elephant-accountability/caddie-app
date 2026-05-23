@@ -54,7 +54,9 @@ export default function QueueScreen() {
   };
 
   const handleSnooze = async () => {
-    setShowSnoozeSheet(true);
+    if (swiping) return;
+    setSwiping(true);
+    try { await snooze(); } finally { setSwiping(false); }
   };
 
   const handleSnoozeConfirm = async (hours: number) => {
