@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../src/theme/colors';
 import { sizes } from '../../src/theme/typography';
 import { FloatingInput } from '../../src/components/FloatingInput';
+import CallSamButton from '../../src/components/CallSamButton';
 
 export default function TabLayout() {
   return (
@@ -73,6 +74,7 @@ export default function TabLayout() {
         />
       </Tabs>
       <FloatingInput />
+      <CallSamButton />
     </View>
   );
 }

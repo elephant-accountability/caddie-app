@@ -183,6 +183,14 @@ class CaddieAPI {
     });
   }
 
+  // Call Sam — triggers outbound Vapi call to rep's phone
+  async callSam(): Promise<{ status: string; call_id?: string; message: string }> {
+    return this.fetchWithTimeout<{ status: string; call_id?: string; message: string }>('/api/call-sam', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
   // Health
   async health(): Promise<HealthResponse> {
     return this.fetchWithTimeout<HealthResponse>('/api/health');
