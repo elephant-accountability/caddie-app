@@ -135,3 +135,33 @@ export interface VaultUploadsResponse {
   uploads: VaultUpload[];
   count: number;
 }
+
+// Converse (brain chat)
+export interface SuggestedAction {
+  type: string;
+  title: string;
+  contact_id?: string;
+  pattern_id?: string;
+}
+
+export interface ConverseRequest {
+  text: string;
+  conversation_id?: string;
+  source?: 'pill' | 'voice' | 'chat';
+  contact_id_hint?: string;
+  mode?: 'voice' | 'text';
+  intent_hint?: 'BRAINSTORM';
+  pattern_id?: string;
+}
+
+export interface ConverseResponse {
+  reply: string;
+  intent: 'greeting' | 'question' | 'task' | 'context' | 'outcome' | 'teaching' | 'brainstorm';
+  contact_id?: string;
+  contact_name?: string;
+  conversation_id: string;
+  actions_taken: string[];
+  suggested_actions: SuggestedAction[];
+  confidence?: number;
+  reply_type: 'answer' | 'action_list' | 'clarification' | 'error';
+}

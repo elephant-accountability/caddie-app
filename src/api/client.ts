@@ -6,6 +6,7 @@ import type {
   ContextResponse, AskRequest, AskResponse, HistoryResponse,
   QuotaResponse, ConversationIngestResponse, PushTokenRequest,
   VaultUploadsResponse,
+  ConverseRequest, ConverseResponse,
 } from '../types/api';
 
 const API_BASE = Constants.expoConfig?.extra?.apiUrl
@@ -171,6 +172,15 @@ class CaddieAPI {
   // Vault uploads list
   async getVaultUploads(): Promise<VaultUploadsResponse> {
     return this.fetchWithTimeout<VaultUploadsResponse>('/api/vault/uploads');
+  }
+
+
+  // Converse (brain chat — /api/converse)
+  async converse(data: ConverseRequest): Promise<ConverseResponse> {
+    return this.fetchWithTimeout<ConverseResponse>('/api/converse', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Health

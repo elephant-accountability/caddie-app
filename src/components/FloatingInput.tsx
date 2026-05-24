@@ -74,12 +74,10 @@ export function FloatingInput() {
     ingestFd.append('text', userText);
     api.ingestConversation(ingestFd).catch(() => {});
 
-    // Ask Caddie for a response
+    // Ask Caddie via /api/converse
     try {
-      const result = await api.ask({ question: userText, contact_id: '' });
-      const reply = result.answer || result.text || '';
+      const reply = await sendToConverse(userText, { source: 'pill' });
       if (reply) {
-        addCaddieResponse(reply);
         setCaddieReply(reply);
         setShowReply(true);
         setExpanded(false);
@@ -171,13 +169,11 @@ export function FloatingInput() {
       
       const transcript = ingestResult.transcript || '';
       if (transcript) {
-        // Got transcript — now ask Caddie
+        // Got transcript — ask Caddie via /api/converse
         addUserMessage(transcript);
         try {
-          const result = await api.ask({ question: transcript, contact_id: '' });
-          const reply = result.answer || result.text || '';
+          const reply = await sendToConverse(transcript, { source: 'voice' });
           if (reply) {
-            addCaddieResponse(reply);
             setCaddieReply(reply);
             setShowReply(true);
             setExpanded(false);
