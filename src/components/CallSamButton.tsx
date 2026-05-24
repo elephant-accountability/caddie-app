@@ -1,10 +1,13 @@
 /**
- * CallSamButton — floating phone button that calls Sam via Vapi.
+ * CallSamButton — floating phone button that calls Sam.
  *
- * Tap → POST /api/call-sam → Sam calls your phone.
- * Shows status: idle → calling → connected (when you pick up).
+ * Tap        → In-app VoIP call via Vapi SDK (toggles to hang-up while active).
+ * Long-press → Phone call via POST /api/call-sam (Sam calls your phone).
+ *
+ * Shows status: idle → connecting/calling → active/connected.
+ * Green pulsing button + end-call icon when an in-app call is active.
  */
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -13,10 +16,12 @@ import {
   Animated,
   Easing,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/client';
+import { useVapi } from '../hooks/useVapi';
 
-type CallState = 'idle' | 'calling' | 'error';
+type PhoneCallState = 'idle' | 'calling' | 'error';
 
 const colors = {
   blue: '#3B82F6',
@@ -29,13 +34,21 @@ const colors = {
 };
 
 export default function CallSamButton() {
-  const [state, setState] = useState<CallState>('idle');
+  // Phone-call state (long-press path)
+  const [phoneState, setPhoneState] = useState<PhoneCallState>('idle');
   const [message, setMessage] = useState('');
+
+  // In-app VoIP state (tap path)
+  const { callState: vapiState, isActive, isConnecting, startCall, endCall } = useVapi();
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const startPulse = () => {
-    Animated.loop(
+    pulseLoopRef.current?.stop();
+    pulseAnim.setValue(1);
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.2,
@@ -50,7 +63,15 @@ export default function CallSamButton() {
           useNativeDriver: true,
         }),
       ]),
-    ).start();
+    );
+    pulseLoopRef.current = loop;
+    loop.start();
+  };
+
+  const stopPulse = () => {
+    pulseLoopRef.current?.stop();
+    pulseLoopRef.current = null;
+    pulseAnim.setValue(1);
   };
 
   const showMessage = (msg: string, durationMs = 3000) => {
@@ -70,32 +91,127 @@ export default function CallSamButton() {
     ]).start(() => setMessage(''));
   };
 
-  const handlePress = async () => {
-    if (state === 'calling') return; // Prevent double-tap
+  // ── Tap: Try VoIP first, auto-fallback to phone call on poor connectivity ──
+  const fallbackToPhone = useCallback(async () => {
+    showMessage('Weak signal — Sam is calling your phone…', 5000);
+    setPhoneState('calling');
+    try {
+      const result = await api.callSam();
+      if (result.status === 'calling') {
+        setTimeout(() => { setPhoneState('idle'); stopPulse(); }, 6000);
+      } else {
+        setPhoneState('error');
+        showMessage(result.message || 'Call failed', 3000);
+        setTimeout(() => { setPhoneState('idle'); stopPulse(); }, 3000);
+      }
+    } catch {
+      setPhoneState('error');
+      showMessage('Could not reach Sam', 3000);
+      setTimeout(() => { setPhoneState('idle'); stopPulse(); }, 3000);
+    }
+  }, []);
 
-    setState('calling');
+  const handlePress = useCallback(async () => {
+    if (isActive || isConnecting) {
+      // End the in-app call
+      endCall();
+      stopPulse();
+      showMessage('Call ended');
+      return;
+    }
+
+    if (phoneState === 'calling') return; // phone call in progress
+
+    startPulse();
+
+    // Check connectivity — skip VoIP entirely if offline or cellular-only with poor signal
+    const netState = await NetInfo.fetch();
+    const hasGoodConnection = netState.isConnected && netState.type === 'wifi';
+
+    if (!hasGoodConnection) {
+      // Poor or no WiFi — go straight to phone call
+      await fallbackToPhone();
+      return;
+    }
+
+    // Try VoIP first
+    showMessage('Connecting…', 5000);
+    try {
+      await startCall();
+      // 'call-start' event on Vapi will flip isActive → true
+    } catch {
+      // VoIP failed (timeout, SDK error, poor connectivity) — fallback to phone
+      await fallbackToPhone();
+    }
+  }, [isActive, isConnecting, phoneState, startCall, endCall, fallbackToPhone]);
+
+  // ── Long-press: phone call via API ──
+  const handleLongPress = useCallback(async () => {
+    if (isActive || isConnecting) return; // don't mix modes
+    if (phoneState === 'calling') return;
+
+    setPhoneState('calling');
     startPulse();
 
     try {
       const result = await api.callSam();
       if (result.status === 'calling') {
-        showMessage('Sam is calling you...', 5000);
-        // Reset after a delay (call is on your phone now)
+        showMessage('Sam is calling your phone…', 5000);
         setTimeout(() => {
-          setState('idle');
-          pulseAnim.setValue(1);
+          setPhoneState('idle');
+          stopPulse();
         }, 6000);
       } else {
-        setState('error');
+        setPhoneState('error');
         showMessage(result.message || 'Call failed', 3000);
-        setTimeout(() => setState('idle'), 3000);
+        setTimeout(() => { setPhoneState('idle'); stopPulse(); }, 3000);
       }
-    } catch (err) {
-      setState('error');
+    } catch {
+      setPhoneState('error');
       showMessage('Could not reach Sam', 3000);
-      setTimeout(() => setState('idle'), 3000);
+      setTimeout(() => { setPhoneState('idle'); stopPulse(); }, 3000);
     }
-  };
+  }, [isActive, isConnecting, phoneState]);
+
+  // Derived visual state
+  const isBusy = isActive || isConnecting || phoneState === 'calling';
+  const isPulsing = isBusy;
+  const isError = vapiState === 'error' || phoneState === 'error';
+
+  // Keep pulse in sync with Vapi state changes
+  React.useEffect(() => {
+    if (isActive || isConnecting) {
+      startPulse();
+    } else if (vapiState === 'idle' && phoneState === 'idle') {
+      stopPulse();
+    }
+  }, [isActive, isConnecting, vapiState, phoneState]);
+
+  // Button colour
+  const buttonStyle = isError
+    ? styles.buttonError
+    : isActive
+      ? styles.buttonActive
+      : isConnecting
+        ? styles.buttonConnecting
+        : phoneState === 'calling'
+          ? styles.buttonCalling
+          : undefined;
+
+  // Icon
+  const iconName = isActive
+    ? 'call-sharp'       // filled "end call" look
+    : isConnecting
+      ? 'call'
+      : 'call-outline';
+
+  const accessLabel = isActive
+    ? 'End call with Sam'
+    : isConnecting
+      ? 'Connecting to Sam…'
+      : phoneState === 'calling'
+        ? 'Sam is calling your phone…'
+        : 'Tap to call Sam in-app, hold for phone call';
 
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -107,19 +223,17 @@ export default function CallSamButton() {
       ) : null}
 
       {/* Call button */}
-      <Animated.View style={{ transform: [{ scale: state === 'calling' ? pulseAnim : 1 }] }}>
+      <Animated.View style={{ transform: [{ scale: isPulsing ? pulseAnim : 1 }] }}>
         <TouchableOpacity
-          style={[
-            styles.button,
-            state === 'calling' && styles.buttonCalling,
-            state === 'error' && styles.buttonError,
-          ]}
+          style={[styles.button, buttonStyle]}
           onPress={handlePress}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
           activeOpacity={0.7}
-          accessibilityLabel={state === 'calling' ? 'Sam is calling...' : 'Call Sam'}
+          accessibilityLabel={accessLabel}
         >
           <Ionicons
-            name={state === 'calling' ? 'call' : 'call-outline'}
+            name={iconName}
             size={24}
             color={colors.white}
           />
@@ -149,6 +263,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+  },
+  buttonActive: {
+    backgroundColor: colors.green,
+  },
+  buttonConnecting: {
+    backgroundColor: colors.blueLight,
   },
   buttonCalling: {
     backgroundColor: colors.green,
