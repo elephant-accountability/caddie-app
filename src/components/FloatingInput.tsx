@@ -25,7 +25,7 @@ import { useConversation } from '../context/ConversationContext';
  * All exchanges persisted to ConversationContext (SQLite + vault).
  */
 export function FloatingInput() {
-  const { addUserMessage, addCaddieResponse } = useConversation();
+  const { addUserMessage, addCaddieResponse, sendToConverse } = useConversation();
   const [expanded, setExpanded] = useState(false);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -224,7 +224,7 @@ export function FloatingInput() {
         </Pressable>
         <Pressable
           style={styles.pill}
-          onPress={() => { dismissReply(); setExpanded(true); }}
+          onPress={async () => { dismissReply(); setExpanded(true); await startRecording(); }}
           accessibilityRole="button"
           accessibilityLabel="Talk to Caddie"
         >
@@ -241,7 +241,7 @@ export function FloatingInput() {
       <View style={styles.pillContainer}>
         <Pressable
           style={styles.pill}
-          onPress={() => setExpanded(true)}
+          onPress={async () => { setExpanded(true); await startRecording(); }}
           accessibilityRole="button"
           accessibilityLabel="Talk to Caddie"
         >
@@ -272,7 +272,7 @@ export function FloatingInput() {
         ) : recording ? (
           <View style={styles.recordingRow}>
             <View style={styles.recordingDot} />
-            <Text style={styles.recordingText}>Recording... tap mic to send</Text>
+            <Text style={styles.recordingText}>Recording... tap stop to send</Text>
           </View>
         ) : null}
 
