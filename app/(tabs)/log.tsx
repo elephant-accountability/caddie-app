@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import { useConversation, type ChatMessage } from '../../src/context/ConversationContext';
 import { api } from '../../src/api/client';
 import { useRouter } from 'expo-router';
@@ -27,10 +28,96 @@ export default function ChatScreen() {
   const [callingVapi, setCallingVapi] = useState(false);
   const router = useRouter();
 
+  // TTS audio cache: message id -> file URI
+  const [audioUris, setAudioUris] = useState<Record<string, string>>({});
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const currentSound = useRef<Audio.Sound | null>(null);
+  const prevMsgCount = useRef(messages.length);
+
   useEffect(() => { loadHistory(); }, [loadHistory]);
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages]);
+
+  // Fetch TTS audio, save to temp file, return URI
+  const fetchTtsAudio = useCallback(async (msgId: string, text: string): Promise<string | null> => {
+    try {
+      const base64Audio = await api.tts(text);
+      const fileUri = `${FileSystem.cacheDirectory}tts_${msgId}.mp3`;
+      await FileSystem.writeAsStringAsync(fileUri, base64Audio, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      setAudioUris(prev => ({ ...prev, [msgId]: fileUri }));
+      return fileUri;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Play audio from URI
+  const playAudio = useCallback(async (uri: string, msgId: string) => {
+    try {
+      // Unload previous sound
+      if (currentSound.current) {
+        await currentSound.current.unloadAsync();
+        currentSound.current = null;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync({ uri });
+      currentSound.current = sound;
+      setPlayingId(msgId);
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingId(null);
+        }
+      });
+
+      await sound.playAsync();
+    } catch {
+      setPlayingId(null);
+    }
+  }, []);
+
+  // Handle speaker icon tap — replay TTS
+  const handleTtsReplay = useCallback(async (msg: ChatMessage) => {
+    const existingUri = audioUris[msg.id];
+    if (existingUri) {
+      await playAudio(existingUri, msg.id);
+    } else {
+      const uri = await fetchTtsAudio(msg.id, msg.text);
+      if (uri) await playAudio(uri, msg.id);
+    }
+  }, [audioUris, playAudio, fetchTtsAudio]);
+
+  // Auto-play TTS when a new caddie message arrives
+  useEffect(() => {
+    if (messages.length > prevMsgCount.current) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.role !== 'user') {
+        // Fetch and auto-play
+        (async () => {
+          const uri = await fetchTtsAudio(lastMsg.id, lastMsg.text);
+          if (uri) await playAudio(uri, lastMsg.id);
+        })();
+      }
+    }
+    prevMsgCount.current = messages.length;
+  }, [messages, fetchTtsAudio, playAudio]);
+
+  // Cleanup sound on unmount
+  useEffect(() => {
+    return () => {
+      if (currentSound.current) {
+        currentSound.current.unloadAsync();
+      }
+    };
+  }, []);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -118,10 +205,25 @@ export default function ChatScreen() {
 
   const renderMessage = (msg: ChatMessage) => {
     const isUser = msg.role === 'user';
+    const hasAudio = !isUser && audioUris[msg.id];
+    const isPlaying = playingId === msg.id;
     return (
       <View key={msg.id} style={styles.msgRow}>
         <View style={[styles.bubble, isUser ? styles.userBubble : styles.caddieBubble]}>
-          <Text style={[styles.msgText, isUser && styles.userText]}>{msg.text}</Text>
+          <Text style={[styles.msgText, isUser && styles.userText, !isUser && styles.msgTextWithAudio]}>{msg.text}</Text>
+          {!isUser && (
+            <Pressable
+              style={styles.speakerBtn}
+              onPress={() => handleTtsReplay(msg)}
+              hitSlop={8}
+            >
+              <Ionicons
+                name={isPlaying ? 'volume-high' : 'volume-medium-outline'}
+                size={16}
+                color={isPlaying ? '#4A9EFF' : '#8888AA'}
+              />
+            </Pressable>
+          )}
         </View>
         <Text style={[styles.time, isUser ? styles.timeRight : styles.timeLeft]}>
           {formatTime(msg.timestamp)}
@@ -280,8 +382,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     lineHeight: 22,
   },
+  msgTextWithAudio: {
+    flex: 1,
+  },
   userText: {
     color: '#FFFFFF',
+  },
+  speakerBtn: {
+    marginLeft: 8,
+    padding: 4,
+    alignSelf: 'flex-start',
   },
   time: {
     fontSize: 10,

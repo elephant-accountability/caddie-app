@@ -195,6 +195,47 @@ class CaddieAPI {
     });
   }
 
+  // TTS — returns base64-encoded audio
+  async tts(text: string): Promise<string> {
+    const url = this.baseUrl + '/api/tts';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+
+    const authHeaders = await this.getAuthHeaders();
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({ text }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`TTS request failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // data:audio/mpeg;base64,XXXXX
+          const dataUrl = reader.result as string;
+          const base64 = dataUrl.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // Health
   async health(): Promise<HealthResponse> {
     return this.fetchWithTimeout<HealthResponse>('/api/health');
