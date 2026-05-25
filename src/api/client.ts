@@ -25,7 +25,11 @@ class CaddieAPI {
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
     const token = await getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+    // Dev fallback — no token, identify by rep-id header
+    return { 'X-Caddie-Rep-Id': 'chris-kenney' };
   }
 
   private async fetchWithTimeout<T>(
