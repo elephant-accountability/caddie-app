@@ -76,12 +76,13 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     if (!currentAction || mutating) return;
     setMutating(true);
     setError(null);
+    const actionId = currentAction.id;
     // Advance immediately — optimistic update
     setCurrentIndex(i => i + 1);
     try {
-      await enqueueOutcome(currentAction.id, outcome, note);
+      await enqueueOutcome(actionId, outcome, note);
       api.submitOutcome({
-        action_id: currentAction.id,
+        action_id: actionId,
         outcome,
         note,
       }).catch(() => {}); // fire-and-forget, outbox retries
@@ -93,16 +94,15 @@ export function QueueProvider({ children }: { children: ReactNode }) {
   }, [currentAction, mutating]);
 
   const skip = useCallback(async () => {
-    if (mutating) return;
+    if (!currentAction || mutating) return;
     setMutating(true);
     setError(null);
+    const actionId = currentAction.id;
     // Advance immediately — optimistic update
     setCurrentIndex(i => i + 1);
     try {
-      if (currentAction) {
-        await enqueueSkip(currentAction.id);
-      }
-      api.skip(currentAction?.id).catch(() => {}); // fire-and-forget
+      await enqueueSkip(actionId);
+      api.skip(actionId).catch(() => {}); // fire-and-forget
     } catch {
       // Already advanced — outbox will retry
     } finally {
@@ -111,16 +111,15 @@ export function QueueProvider({ children }: { children: ReactNode }) {
   }, [mutating, currentAction]);
 
   const snooze = useCallback(async (hours: number = 4) => {
-    if (mutating) return;
+    if (!currentAction || mutating) return;
     setMutating(true);
     setError(null);
+    const actionId = currentAction.id;
     // Advance immediately — optimistic update
     setCurrentIndex(i => i + 1);
     try {
-      if (currentAction) {
-        await enqueueSnooze(currentAction.id, hours);
-      }
-      api.snooze(currentAction?.id, hours).catch(() => {}); // fire-and-forget
+      await enqueueSnooze(actionId, hours);
+      api.snooze(actionId, hours).catch(() => {}); // fire-and-forget
     } catch {
       // Already advanced — outbox will retry
     } finally {

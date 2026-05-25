@@ -19,6 +19,7 @@ import { sizes } from '../../src/theme/typography';
 import { useQueue } from '../../src/context/QueueContext';
 import { api } from '../../src/api/client';
 import { ActionCard } from '../../src/components/ActionCard';
+import { SwipeableActionCard } from '../../src/components/SwipeableActionCard';
 import { OutcomeModal } from '../../src/components/OutcomeModal';
 import { ContactSheet } from '../../src/components/ContactSheet';
 import { AskInput } from '../../src/components/AskInput';
@@ -151,17 +152,18 @@ export default function QueueScreen() {
         ) : currentAction ? (
           <>
             {/* Top recommendation card */}
-            <ActionCard
+            <SwipeableActionCard
               action={currentAction}
-              onDone={() => {
+              onSwipeRight={() => {
                 setOutcomeAction(currentAction);
                 setShowOutcome(true);
               }}
-              onSkip={handleSkip}
-              onSnooze={handleSnooze}
+              onSwipeLeft={handleSkip}
+              onSwipeUp={handleSnooze}
               onTapContact={handleTapContact}
-              onShare={() => {
-                api.share(currentAction.id, currentAction.contact_id, currentAction.account).catch(() => {});
+              onTapAction={() => {
+                setOutcomeAction(currentAction);
+                setShowOutcome(true);
               }}
             />
 
