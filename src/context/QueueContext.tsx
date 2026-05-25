@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { api } from '../api/client';
 import { enqueueOutcome, enqueueSkip, enqueueSnooze, saveQueueCache, loadQueueCache } from '../offline/db';
+import { flushOutbox } from '../offline/outboxSync';
 import type { Action, QueueResponse, OutcomeType, Quota } from '../types/api';
 
 interface QueueContextType {
@@ -36,6 +37,8 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
+      // Flush pending outbox items to server BEFORE fetching
+      try { await flushOutbox(); } catch {}
       const data = await api.getQueue();
       setActions(data.actions);
       setCurrentIndex(data.current_index);
