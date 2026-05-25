@@ -241,7 +241,7 @@ export function SwipeableActionCard({
         </View>
 
         {/* Swipe hint */}
-        <Text style={styles.swipeHint}>swipe \u2192 done \u00b7 \u2190 skip \u00b7 \u2191 later</Text>
+        <Text style={styles.swipeHint}>swipe → done · ← skip · ↑ later</Text>
       </Animated.View>
     </View>
   );

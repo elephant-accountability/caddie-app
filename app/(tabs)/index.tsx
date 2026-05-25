@@ -1,13 +1,214 @@
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, RefreshControl, StyleSheet, View, ActivityIndicator, Text } from 'react-native';
-import { colors } from '../../src/theme/colors';
-import { sizes } from '../../src/theme/typography';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Dimensions,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useQueue } from '../../src/context/QueueContext';
-import { MorningBrief } from '../../src/components/MorningBrief';
-import { QuotaBar } from '../../src/components/QuotaBar';
+import type { Action } from '../../src/types/api';
 
-export default function BriefScreen() {
-  const { actions, loading, refresh, quota, remaining, skip, snooze, complete } = useQueue();
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
+const SWIPE_UP_THRESHOLD = 120;
+
+const BADGE_COLORS: Record<string, string> = {
+  call: '#22C55E',
+  email: '#3B82F6',
+  sms: '#F59E0B',
+  research: '#8B5CF6',
+  prep: '#EC4899',
+};
+
+const BADGE_LABELS: Record<string, string> = {
+  call: 'CALL',
+  email: 'EMAIL',
+  sms: 'TEXT',
+  research: 'RESEARCH',
+  prep: 'PREP',
+};
+
+function ActionCardView({ action }: { action: Action }) {
+  const badgeColor = BADGE_COLORS[action.type] || '#8B5CF6';
+  const badgeLabel = BADGE_LABELS[action.type] || action.type.toUpperCase();
+
+  return (
+    <View style={styles.card}>
+      {/* Badge */}
+      <View style={[styles.badge, { backgroundColor: badgeColor + '20' }]}>  
+        <Text style={[styles.badgeText, { color: badgeColor }]}>{badgeLabel}</Text>
+      </View>
+
+      {/* Contact name */}
+      <Text style={styles.contactName} numberOfLines={2}>
+        {action.contact || action.account}
+      </Text>
+
+      {/* Company / product */}
+      <Text style={styles.company} numberOfLines={1}>
+        {action.account}
+        {action.product ? ` · ${action.product}` : ''}
+      </Text>
+
+      {/* Revenue badge */}
+      {action.revenue && action.revenue[1] > 0 && (
+        <View style={styles.revBadge}>
+          <Text style={styles.revText}>
+            ${Math.round(action.revenue[0]).toLocaleString()}–${Math.round(action.revenue[1]).toLocaleString()}
+          </Text>
+        </View>
+      )}
+
+      {/* Reason — the headline */}
+      <Text style={styles.reason}>{action.reason}</Text>
+
+      {/* Supporting evidence */}
+      {action.supporting ? (
+        <Text style={styles.supporting}>{action.supporting}</Text>
+      ) : null}
+
+      {/* Phone if call */}
+      {action.type === 'call' && action.phone && (
+        <Text style={styles.phone}>{action.phone}</Text>
+      )}
+
+      {/* Swipe hints */}
+      <View style={styles.hints}>
+        <Text style={styles.hint}>← skip</Text>
+        <Text style={styles.hint}>↑ later</Text>
+        <Text style={styles.hint}>→ done</Text>
+      </View>
+    </View>
+  );
+}
+
+function SwipeableCard({
+  action,
+  onSwipeRight,
+  onSwipeLeft,
+  onSwipeUp,
+}: {
+  action: Action;
+  onSwipeRight: () => void;
+  onSwipeLeft: () => void;
+  onSwipeUp: () => void;
+}) {
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const cardOpacity = useSharedValue(1);
+  const scale = useSharedValue(0.95);
+
+  // Animate in
+  React.useEffect(() => {
+    translateY.value = 60;
+    cardOpacity.value = 0;
+    scale.value = 0.95;
+    translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+    cardOpacity.value = withTiming(1, { duration: 250 });
+    scale.value = withSpring(1, { damping: 20, stiffness: 200 });
+  }, [action.id]);
+
+  const gesture = Gesture.Pan()
+    .onUpdate((e) => {
+      translateX.value = e.translationX;
+      translateY.value = Math.min(0, e.translationY); // only allow upward
+    })
+    .onEnd((e) => {
+      if (e.translationX > SWIPE_THRESHOLD) {
+        // Swipe right → done
+        translateX.value = withSpring(SCREEN_WIDTH * 1.5, { damping: 15 });
+        cardOpacity.value = withTiming(0, { duration: 200 });
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+        runOnJS(onSwipeRight)();
+      } else if (e.translationX < -SWIPE_THRESHOLD) {
+        // Swipe left → skip
+        translateX.value = withSpring(-SCREEN_WIDTH * 1.5, { damping: 15 });
+        cardOpacity.value = withTiming(0, { duration: 200 });
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+        runOnJS(onSwipeLeft)();
+      } else if (e.translationY < -SWIPE_UP_THRESHOLD) {
+        // Swipe up → snooze
+        translateY.value = withSpring(-SCREEN_HEIGHT, { damping: 15 });
+        cardOpacity.value = withTiming(0, { duration: 200 });
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+        runOnJS(onSwipeUp)();
+      } else {
+        // Snap back
+        translateX.value = withSpring(0, { damping: 20 });
+        translateY.value = withSpring(0, { damping: 20 });
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const rotate = interpolate(
+      translateX.value,
+      [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+      [-15, 0, 15],
+      Extrapolation.CLAMP,
+    );
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { rotate: `${rotate}deg` },
+        { scale: scale.value },
+      ],
+      opacity: cardOpacity.value,
+    };
+  });
+
+  // Swipe direction indicators
+  const leftIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], Extrapolation.CLAMP),
+  }));
+
+  const rightIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const upIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateY.value, [-SWIPE_UP_THRESHOLD, 0], [1, 0], Extrapolation.CLAMP),
+  }));
+
+  return (
+    <View style={styles.cardContainer}>
+      {/* Direction indicators */}
+      <Animated.View style={[styles.indicator, styles.indicatorLeft, leftIndicatorStyle]}>
+        <Text style={styles.indicatorTextSkip}>SKIP</Text>
+      </Animated.View>
+      <Animated.View style={[styles.indicator, styles.indicatorRight, rightIndicatorStyle]}>
+        <Text style={styles.indicatorTextDone}>DONE</Text>
+      </Animated.View>
+      <Animated.View style={[styles.indicator, styles.indicatorTop, upIndicatorStyle]}>
+        <Text style={styles.indicatorTextLater}>LATER</Text>
+      </Animated.View>
+
+      <GestureDetector gesture={gesture}>
+        <Animated.View style={[styles.cardWrapper, animatedStyle]}>
+          <ActionCardView action={action} />
+        </Animated.View>
+      </GestureDetector>
+    </View>
+  );
+}
+
+export default function CardsScreen() {
+  const { actions, currentAction, currentIndex, remaining, loading, error, refresh, complete, skip, snooze } = useQueue();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -16,36 +217,257 @@ export default function BriefScreen() {
     setRefreshing(false);
   };
 
+  const handleDone = useCallback(() => {
+    complete('completed');
+  }, [complete]);
+
+  const handleSkip = useCallback(() => {
+    skip();
+  }, [skip]);
+
+  const handleSnooze = useCallback(() => {
+    snooze();
+  }, [snooze]);
+
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.white} />
-        }
-      >
-        <QuotaBar quota={quota} />
-
-        {loading && !refreshing ? (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" color={colors.white} />
-          </View>
-        ) : (
-          <MorningBrief
-            actions={actions}
-            date={new Date()}
-            onSkip={() => skip()}
-            onSnooze={() => snooze()}
-            onDone={() => complete('completed')}
-          />
+      {/* Activity counter */}
+      <View style={styles.activityBar}>
+        <Text style={styles.activityText}>
+          {actions.length} action{actions.length !== 1 ? 's' : ''} today
+        </Text>
+        {remaining > 0 && (
+          <Text style={styles.remainingText}>{remaining} remaining</Text>
         )}
-      </ScrollView>
+      </View>
+
+      {error && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
+      {currentAction ? (
+        <SwipeableCard
+          key={currentAction.id}
+          action={currentAction}
+          onSwipeRight={handleDone}
+          onSwipeLeft={handleSkip}
+          onSwipeUp={handleSnooze}
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.emptyContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+          }
+        >
+          <Text style={styles.emptyIcon}>✓</Text>
+          <Text style={styles.emptyTitle}>You're clear.</Text>
+          <Text style={styles.emptySubtitle}>Caddie's working on more.</Text>
+          {actions.length > 0 && (
+            <Text style={styles.emptyStat}>
+              {actions.length} action{actions.length !== 1 ? 's' : ''} processed today
+            </Text>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.navy },
-  content: { paddingBottom: 40 },
-  loading: { paddingVertical: 80, alignItems: 'center' },
+  safe: {
+    flex: 1,
+    backgroundColor: '#0A0A0F',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activityBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  activityText: {
+    fontSize: 13,
+    color: '#8888AA',
+    fontWeight: '500',
+  },
+  remainingText: {
+    fontSize: 13,
+    color: '#4A9EFF',
+    fontWeight: '600',
+  },
+  errorBanner: {
+    backgroundColor: '#EF444420',
+    marginHorizontal: 16,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  cardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardWrapper: {
+    width: SCREEN_WIDTH - 32,
+    maxHeight: SCREEN_HEIGHT - 250,
+  },
+  card: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#2A2A3E',
+    gap: 12,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  contactName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    lineHeight: 34,
+  },
+  company: {
+    fontSize: 15,
+    color: '#8888AA',
+    fontWeight: '500',
+  },
+  revBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#22C55E20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  revText: {
+    fontSize: 13,
+    color: '#22C55E',
+    fontWeight: '600',
+  },
+  reason: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    lineHeight: 26,
+    marginTop: 4,
+  },
+  supporting: {
+    fontSize: 14,
+    color: '#8888AA',
+    lineHeight: 21,
+  },
+  phone: {
+    fontSize: 15,
+    color: '#22C55E',
+    fontWeight: '500',
+  },
+  hints: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#2A2A3E',
+  },
+  hint: {
+    fontSize: 12,
+    color: '#555566',
+    fontWeight: '500',
+  },
+  // Direction indicators
+  indicator: {
+    position: 'absolute',
+    zIndex: 10,
+    padding: 16,
+    borderRadius: 12,
+  },
+  indicatorLeft: {
+    left: 20,
+    top: '45%',
+  },
+  indicatorRight: {
+    right: 20,
+    top: '45%',
+  },
+  indicatorTop: {
+    top: 20,
+    alignSelf: 'center',
+  },
+  indicatorTextSkip: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#EF4444',
+    letterSpacing: 2,
+  },
+  indicatorTextDone: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#22C55E',
+    letterSpacing: 2,
+  },
+  indicatorTextLater: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F59E0B',
+    letterSpacing: 2,
+  },
+  // Empty state
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+    gap: 12,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    color: '#22C55E',
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: '#8888AA',
+  },
+  emptyStat: {
+    fontSize: 13,
+    color: '#555566',
+    marginTop: 20,
+  },
 });
