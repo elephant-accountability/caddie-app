@@ -65,8 +65,18 @@ export function SwipeableActionCard({
 
   const panResponder = useMemo(
     () => PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        !swipingRef.current && (Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10),
+      onMoveShouldSetPanResponder: (_, g) => {
+        if (swipingRef.current) return false;
+        const absX = Math.abs(g.dx);
+        const absY = Math.abs(g.dy);
+        // Only claim gesture if:
+        // - Horizontal movement dominates (swipe left/right to act/skip)
+        // - OR a fast upward flick (swipe up to snooze) — velocity check prevents
+        //   stealing normal scroll. Must be clearly intentional.
+        const isHorizontalSwipe = absX > 15 && absX > absY * 1.5;
+        const isUpwardFlick = g.dy < -30 && absY > absX * 2 && g.vy < -0.3;
+        return isHorizontalSwipe || isUpwardFlick;
+      },
       onPanResponderMove: Animated.event(
         [null, { dx: pan.x, dy: pan.y }],
         { useNativeDriver: false }
