@@ -53,7 +53,8 @@
         }
       ],
       "expo-sqlite",
-      "./plugins/share-extension/withShareExtension"
+      "./plugins/share-extension/withShareExtension",
+      "./plugins/callkit/withCallKit"
     ],
     "extra": {
       "apiUrl": "https://caddie-core.fly.dev",

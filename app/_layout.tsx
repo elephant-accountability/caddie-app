@@ -8,12 +8,17 @@ import { AuthProvider, useAuth } from '../src/auth/AuthContext';
 import { LoginScreen } from '../src/components/LoginScreen';
 import { View } from 'react-native';
 import { useShareCapture } from '../src/hooks/useShareCapture';
+import { useCallCapture } from '../src/hooks/useCallCapture';
+import { PostCallCapture } from '../src/components/PostCallCapture';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
   // Listen for share extension deep links
   useShareCapture();
+
+  // Listen for phone call end events
+  const { pendingCall, isModalVisible, dismissModal } = useCallCapture();
 
   if (isLoading) {
     return <View style={{ flex: 1, backgroundColor: colors.navy }} />;
@@ -36,6 +41,11 @@ function AppContent() {
         >
           <Stack.Screen name="(tabs)" />
         </Stack>
+        <PostCallCapture
+          visible={isModalVisible}
+          callInfo={pendingCall}
+          onDismiss={dismissModal}
+        />
       </ConversationProvider>
     </QueueProvider>
   );
