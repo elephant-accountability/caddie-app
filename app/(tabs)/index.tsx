@@ -113,9 +113,10 @@ function DetailModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalContent} onPress={() => {}}>
-          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity style={styles.modalDismissArea} activeOpacity={1} onPress={onClose} />
+        <View style={styles.modalContent}>
+          <ScrollView bounces={true} showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingBottom: 40 }}>
             {/* Header */}
             <View style={styles.modalHeader}>
               <View style={[styles.badge, { backgroundColor: badgeColor + '20' }]}>
@@ -226,8 +227,8 @@ function DetailModal({
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -571,9 +572,13 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'flex-end',
   },
+  modalDismissArea: {
+    flex: 1,
+  },
   modalContent: {
     backgroundColor: '#1A1A2E', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, maxHeight: SCREEN_HEIGHT * 0.85, minHeight: SCREEN_HEIGHT * 0.5,
+    padding: 24, maxHeight: SCREEN_HEIGHT * 0.85, minHeight: SCREEN_HEIGHT * 0.4,
+    flex: 0,
   },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
