@@ -236,6 +236,11 @@ class CaddieAPI {
     }
   }
 
+  // Action detail (full micro-action with evidence, suggested message, etc.)
+  async getActionDetail(actionId: string): Promise<any> {
+    return this.fetchWithTimeout<any>(`/api/queue/actions/${actionId}`);
+  }
+
   // Health
   async health(): Promise<HealthResponse> {
     return this.fetchWithTimeout<HealthResponse>('/api/health');
