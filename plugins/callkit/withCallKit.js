@@ -7,7 +7,7 @@
  * 
  * What this plugin does at prebuild time:
  * 1. Adds CallKit + Contacts frameworks to the Xcode project
- * 2. Adds Background Modes (voip) to entitlements
+ * 2. Adds NSContactsUsageDescription to Info.plist
  * 3. Adds NSContactsUsageDescription to Info.plist
  * 4. Writes the native Swift module + ObjC bridge into ios/CaddieCallKit/
  */
@@ -27,27 +27,11 @@ function withCallKit(config) {
         'Caddie uses your contacts to identify callers and link call notes to the right person.';
     }
 
-    // Background modes — add voip if not present
-    if (!config.modResults.UIBackgroundModes) {
-      config.modResults.UIBackgroundModes = [];
-    }
-    if (!config.modResults.UIBackgroundModes.includes('voip')) {
-      config.modResults.UIBackgroundModes.push('voip');
-    }
-
+    // CXCallObserver is passive — no background modes needed
     return config;
   });
 
-  // Step 2: Add entitlements
-  config = withEntitlementsPlist(config, (config) => {
-    // Ensure background modes capability
-    if (!config.modResults['com.apple.developer.networking.voip']) {
-      config.modResults['com.apple.developer.networking.voip'] = true;
-    }
-    return config;
-  });
-
-  // Step 3: Write native Swift + ObjC bridge files into ios/ and add to Xcode project
+  // Step 2: Write native Swift + ObjC bridge files into ios/ and add to Xcode project
   config = withXcodeProject(config, async (config) => {
     const projectRoot = config.modRequest.projectRoot;
     const iosDir = path.join(projectRoot, 'ios');
