@@ -7,9 +7,13 @@ import { ConversationProvider } from '../src/context/ConversationContext';
 import { AuthProvider, useAuth } from '../src/auth/AuthContext';
 import { LoginScreen } from '../src/components/LoginScreen';
 import { View } from 'react-native';
+import { useShareCapture } from '../src/hooks/useShareCapture';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Listen for share extension deep links
+  useShareCapture();
 
   if (isLoading) {
     return <View style={{ flex: 1, backgroundColor: colors.navy }} />;
