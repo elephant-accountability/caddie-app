@@ -18,6 +18,14 @@
       "bundleIdentifier": "com.elephantaccountability.caddie",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Caddie EDC uses the microphone to record voice notes about customer interactions."
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+          }
+        ]
       }
     },
     "android": {
@@ -53,8 +61,24 @@
         }
       ],
       "expo-sqlite",
-      "./plugins/share-extension/withShareExtension",
-      "./plugins/callkit/withCallKit"
+      "./plugins/callkit/withCallKit",
+      [
+        "expo-share-extension",
+        {
+          "activationRules": [
+            { "type": "text" },
+            { "type": "url", "max": 1 },
+            { "type": "image", "max": 3 },
+            { "type": "file", "max": 3 }
+          ],
+          "excludedPackages": [
+            "expo-dev-client",
+            "expo-splash-screen",
+            "expo-updates",
+            "expo-font"
+          ]
+        }
+      ]
     ],
     "extra": {
       "apiUrl": "https://caddie-core.fly.dev",
