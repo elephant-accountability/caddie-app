@@ -28,8 +28,7 @@ class CaddieAPI {
     if (token) {
       return { Authorization: `Bearer ${token}` };
     }
-    // Dev fallback — no token, identify by rep-id header
-    return { 'X-Caddie-Rep-Id': 'chris-kenney' };
+    return {};
   }
 
   private async fetchWithTimeout<T>(

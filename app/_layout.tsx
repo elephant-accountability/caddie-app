@@ -14,7 +14,7 @@ import { useOnboardingGate } from '../src/onboarding/useOnboardingGate';
 import SweepScreen from '../src/onboarding/SweepScreen';
 
 function AppContent() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, repId } = useAuth();
 
   // Listen for share extension deep links
   useShareCapture();
@@ -37,7 +37,7 @@ function AppContent() {
   if (needsOnboarding) {
     return (
       <SweepScreen
-        repId={user?.id ?? "unknown"}
+        repId={repId ?? "unknown"}
         onComplete={completeOnboarding}
       />
     );
