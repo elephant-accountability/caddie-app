@@ -10,9 +10,11 @@ import { View } from 'react-native';
 import { useShareCapture } from '../src/hooks/useShareCapture';
 import { useCallCapture } from '../src/hooks/useCallCapture';
 import { PostCallCapture } from '../src/components/PostCallCapture';
+import { useOnboardingGate } from '../src/onboarding/useOnboardingGate';
+import SweepScreen from '../src/onboarding/SweepScreen';
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   // Listen for share extension deep links
   useShareCapture();
@@ -20,12 +22,25 @@ function AppContent() {
   // Listen for phone call end events
   const { pendingCall, isModalVisible, dismissModal } = useCallCapture();
 
+  // First-run onboarding gate
+  const { needsOnboarding, completeOnboarding } = useOnboardingGate();
+
   if (isLoading) {
     return <View style={{ flex: 1, backgroundColor: colors.navy }} />;
   }
 
   if (!isAuthenticated) {
     return <LoginScreen />;
+  }
+
+  // Show sweep screen on first run (after auth, before main app)
+  if (needsOnboarding) {
+    return (
+      <SweepScreen
+        repId={user?.id ?? "unknown"}
+        onComplete={completeOnboarding}
+      />
+    );
   }
 
   return (
