@@ -88,21 +88,40 @@ export function ActionCard({
     <View style={styles.card}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={[styles.typeBadge, { borderColor: accentColor }]}>
-          <Ionicons name={iconName} size={16} color={accentColor} />
-          <Text style={[styles.typeText, { color: accentColor }]}>
-            {action.type.toUpperCase()}
-          </Text>
+        <View style={styles.headerBadges}>
+          <View style={[styles.typeBadge, { borderColor: accentColor }]}>
+            <Ionicons name={iconName} size={16} color={accentColor} />
+            <Text style={[styles.typeText, { color: accentColor }]}>
+              {action.type.toUpperCase()}
+            </Text>
+          </View>
+          {action.urgency === 'high' && (
+            <View style={[styles.urgencyDot, { backgroundColor: '#EF4444' }]} />
+          )}
+          {action.urgency === 'medium' && (
+            <View style={[styles.urgencyDot, { backgroundColor: '#F59E0B' }]} />
+          )}
         </View>
-        {action.time ? (
-          <Text style={styles.timeEst}>{action.time}m</Text>
-        ) : null}
+        <View style={styles.headerRight}>
+          {action.executor === 'autonomous' && (
+            <View style={styles.autonomousBadge}>
+              <Ionicons name="flash-outline" size={12} color={colors.textMuted} />
+              <Text style={styles.autonomousText}>Caddie handled</Text>
+            </View>
+          )}
+          {action.time ? (
+            <Text style={styles.timeEst}>{action.time}m</Text>
+          ) : null}
+        </View>
       </View>
 
       {/* Contact */}
       <Pressable onPress={onTapContact} accessibilityRole="button" accessibilityLabel={`View ${action.contact || action.account}`}>
-        <Text style={styles.contactName}>{action.contact || action.account}</Text>
+        <Text style={styles.contactName}>{action.contact || action.contact_name || action.account}</Text>
       </Pressable>
+      {action.category && (
+        <Text style={styles.categoryLabel}>{action.category}</Text>
+      )}
       {action.contact && action.account !== action.contact && (
         <Text style={styles.accountName}>{action.account}</Text>
       )}
@@ -113,6 +132,16 @@ export function ActionCard({
       {action.supporting ? (
         <Text style={styles.supporting} numberOfLines={3}>{action.supporting}</Text>
       ) : null}
+
+      {/* Vault references */}
+      {action.vault_refs && action.vault_refs.length > 0 && (
+        <View style={styles.vaultRefRow}>
+          <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
+          <Text style={styles.vaultRefText}>
+            Grounded in {action.vault_refs.length} source{action.vault_refs.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
 
       {/* Revenue */}
       {action.revenue && action.revenue[1] > 0 && (
@@ -206,6 +235,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  urgencyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  autonomousBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    opacity: 0.7,
+  },
+  autonomousText: {
+    fontSize: sizes.xs,
+    color: colors.textMuted,
+  },
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -228,6 +282,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 10,
   },
+  categoryLabel: {
+    fontSize: sizes.xs,
+    color: colors.textMuted,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   reason: {
     fontSize: sizes.base,
     color: colors.white,
@@ -239,6 +300,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 19,
     marginBottom: 8,
+  },
+  vaultRefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+  },
+  vaultRefText: {
+    fontSize: sizes.xs,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   revBadge: {
     alignSelf: 'flex-start',

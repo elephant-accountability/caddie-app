@@ -95,7 +95,7 @@ class CaddieAPI {
 
   // Queue
   async getQueue(): Promise<QueueResponse> {
-    return this.fetchWithTimeout<QueueResponse>('/api/queue');
+    return this.fetchWithTimeout<QueueResponse>('/api/queue/actions');
   }
 
   // Outcome

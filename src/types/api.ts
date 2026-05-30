@@ -1,5 +1,8 @@
 export type ActionType = 'call' | 'email' | 'sms' | 'research';
 export type OutcomeType = 'completed' | 'no_answer' | 'voicemail' | 'callback' | 'not_relevant';
+export type ActionCategory = 'Deal' | 'Prospect' | 'Personal' | 'Goal' | 'Stretch';
+export type UrgencyLevel = 'high' | 'medium' | 'low';
+export type ExecutorType = 'autonomous' | 'human';
 
 export interface Action {
   id: string;
@@ -14,6 +17,25 @@ export interface Action {
   supporting: string;
   revenue: [number, number] | null;
   time: number;
+  // v2 fields
+  action_type?: string;
+  headline?: string;
+  detail?: string;
+  contact_name?: string;
+  company?: string;
+  evidence?: string;
+  source_type?: string;
+  category?: ActionCategory;
+  urgency?: UrgencyLevel;
+  score?: number;
+  tier?: string;
+  domain?: string;
+  executor?: ExecutorType;
+  confidence?: number;
+  deadline?: string | null;
+  goal_id?: string | null;
+  vault_refs?: string[];
+  prerequisite_card_ids?: string[];
 }
 
 export interface Quota {
@@ -23,10 +45,18 @@ export interface Quota {
   pace_status: string;
 }
 
+export interface QueueStats {
+  total: number;
+  pending: number;
+  acted: number;
+  skipped: number;
+}
+
 export interface QueueResponse {
   actions: Action[];
   current_index: number;
   quota: Quota | null;
+  stats?: QueueStats;
 }
 
 export interface OutcomeRequest {
