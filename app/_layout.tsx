@@ -9,6 +9,8 @@ import { LoginScreen } from '../src/components/LoginScreen';
 import { View } from 'react-native';
 import { useShareCapture } from '../src/hooks/useShareCapture';
 import { useCallCapture } from '../src/hooks/useCallCapture';
+import { useDeepLink } from '../src/hooks/useDeepLink';
+import { useSiriShortcuts } from '../src/hooks/useSiriShortcuts';
 import { PostCallCapture } from '../src/components/PostCallCapture';
 import { useOnboardingGate } from '../src/onboarding/useOnboardingGate';
 import SweepScreen from '../src/onboarding/SweepScreen';
@@ -21,6 +23,12 @@ function AppContent() {
 
   // Listen for phone call end events
   const { pendingCall, isModalVisible, dismissModal } = useCallCapture();
+
+  // Handle deep links: caddie-edc://call-sam, caddie-edc://chat, etc.
+  useDeepLink();
+
+  // Register Siri Shortcuts (Call Sam, Caddie Chat, Caddie Capture)
+  useSiriShortcuts();
 
   // First-run onboarding gate
   const { needsOnboarding, completeOnboarding } = useOnboardingGate();

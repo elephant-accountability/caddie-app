@@ -245,6 +245,17 @@ class CaddieAPI {
   async health(): Promise<HealthResponse> {
     return this.fetchWithTimeout<HealthResponse>('/api/health');
   }
+
+  // Call Sam — trigger Vapi outbound call to rep's phone
+  async callSam(context?: string): Promise<{ status: string; call_id?: string; message: string }> {
+    return this.fetchWithTimeout<{ status: string; call_id?: string; message: string }>(
+      '/api/call-sam',
+      {
+        method: 'POST',
+        body: JSON.stringify({ context: context || null }),
+      }
+    );
+  }
 }
 
 export const api = new CaddieAPI();
