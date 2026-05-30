@@ -17,7 +17,15 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.elephantaccountability.caddie",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Caddie EDC uses the microphone to record voice notes about customer interactions."
+        "NSMicrophoneUsageDescription": "Caddie EDC uses the microphone to record voice notes about customer interactions.",
+        "LSApplicationQueriesSchemes": [
+          "googlegmail", "ms-outlook", "hubspot", "salesforce1",
+          "apollo", "closeapp", "salesloft", "googledrive",
+          "ms-onedrive", "dbapi-1", "boxnet", "slack",
+          "msteams", "whatsapp", "tg", "zoomus",
+          "granola", "otter", "fireflies", "calendly",
+          "comgooglemaps", "waze", "linkedin"
+        ]
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
